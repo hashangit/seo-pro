@@ -1,11 +1,11 @@
-# Claude SEO Installer for Windows
+# SEO Pro Installer for Windows
 # PowerShell installation script
 
 $ErrorActionPreference = "Stop"
 
 Write-Host "════════════════════════════════════════" -ForegroundColor Cyan
-Write-Host "║   Claude SEO - Installer             ║" -ForegroundColor Cyan
-Write-Host "║   Claude Code SEO Skill              ║" -ForegroundColor Cyan
+Write-Host "║   SEO Pro - Installer                ║" -ForegroundColor Cyan
+Write-Host "║   SEO Pro Skill for Claude Code      ║" -ForegroundColor Cyan
 Write-Host "════════════════════════════════════════" -ForegroundColor Cyan
 Write-Host ""
 
@@ -29,19 +29,19 @@ try {
 # Set paths
 $SkillDir = "$env:USERPROFILE\.claude\skills\seo"
 $AgentDir = "$env:USERPROFILE\.claude\agents"
-$RepoUrl = "https://github.com/AgriciDaniel/claude-seo"
+$RepoUrl = "https://github.com/hashangit/seo-pro"
 
 # Create directories
 New-Item -ItemType Directory -Force -Path $SkillDir | Out-Null
 New-Item -ItemType Directory -Force -Path $AgentDir | Out-Null
 
 # Clone to temp directory
-$TempDir = Join-Path $env:TEMP "claude-seo-install"
+$TempDir = Join-Path $env:TEMP "seo-pro-install"
 if (Test-Path $TempDir) {
     Remove-Item -Recurse -Force $TempDir
 }
 
-Write-Host "↓ Downloading Claude SEO..." -ForegroundColor Yellow
+Write-Host "↓ Downloading SEO Pro..." -ForegroundColor Yellow
 git clone --depth 1 $RepoUrl $TempDir 2>$null
 
 # Copy skill files
@@ -114,7 +114,7 @@ try {
 Remove-Item -Recurse -Force $TempDir
 
 Write-Host ""
-Write-Host "✓ Claude SEO installed successfully!" -ForegroundColor Green
+Write-Host "✓ SEO Pro installed successfully!" -ForegroundColor Green
 Write-Host ""
 Write-Host "Usage:" -ForegroundColor Cyan
 Write-Host "  1. Start Claude Code:  claude"

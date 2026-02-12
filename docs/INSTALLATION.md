@@ -14,13 +14,13 @@ Optional:
 ### Unix/macOS/Linux
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/install.sh | bash
 ```
 
 ### Windows (PowerShell)
 
 ```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/hashangit/seo-pro/main/install.ps1 | iex
 ```
 
 ## Manual Installation
@@ -28,8 +28,8 @@ irm https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.ps1 |
 1. **Clone the repository**
 
 ```bash
-git clone https://github.com/AgriciDaniel/claude-seo.git
-cd claude-seo
+git clone https://github.com/hashangit/seo-pro.git
+cd seo-pro
 ```
 
 2. **Run the installer**
@@ -80,7 +80,7 @@ You should see a help message or prompt for a URL.
 ## Uninstallation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/uninstall.sh | bash
 ```
 
 Or manually:
@@ -108,10 +108,10 @@ To upgrade to the latest version:
 
 ```bash
 # Uninstall current version
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/uninstall.sh | bash
 
 # Install new version
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/install.sh | bash
 ```
 
 ## Troubleshooting

@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Claude SEO Installer
+# SEO Pro Installer
 # Wraps everything in main() to prevent partial execution on network failure
 
 main() {
     SKILL_DIR="${HOME}/.claude/skills/seo"
     AGENT_DIR="${HOME}/.claude/agents"
-    REPO_URL="https://github.com/AgriciDaniel/claude-seo"
+    REPO_URL="https://github.com/hashangit/seo-pro"
 
     echo "════════════════════════════════════════"
-    echo "║   Claude SEO - Installer             ║"
-    echo "║   Claude Code SEO Skill              ║"
+    echo "║   SEO Pro - Installer                ║"
+    echo "║   SEO Pro Skill for Claude Code      ║"
     echo "════════════════════════════════════════"
     echo ""
 
@@ -31,16 +31,16 @@ main() {
     TEMP_DIR=$(mktemp -d)
     trap "rm -rf ${TEMP_DIR}" EXIT
 
-    echo "↓ Downloading Claude SEO..."
-    git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/claude-seo" 2>/dev/null
+    echo "↓ Downloading SEO Pro..."
+    git clone --depth 1 "${REPO_URL}" "${TEMP_DIR}/seo-pro" 2>/dev/null
 
     # Copy skill files
     echo "→ Installing skill files..."
-    cp -r "${TEMP_DIR}/claude-seo/seo/"* "${SKILL_DIR}/"
+    cp -r "${TEMP_DIR}/seo-pro/seo/"* "${SKILL_DIR}/"
 
     # Copy sub-skills
-    if [ -d "${TEMP_DIR}/claude-seo/skills" ]; then
-        for skill_dir in "${TEMP_DIR}/claude-seo/skills"/*/; do
+    if [ -d "${TEMP_DIR}/seo-pro/skills" ]; then
+        for skill_dir in "${TEMP_DIR}/seo-pro/skills"/*/; do
             skill_name=$(basename "${skill_dir}")
             target="${HOME}/.claude/skills/${skill_name}"
             mkdir -p "${target}"
@@ -49,39 +49,39 @@ main() {
     fi
 
     # Copy schema templates
-    if [ -d "${TEMP_DIR}/claude-seo/schema" ]; then
+    if [ -d "${TEMP_DIR}/seo-pro/schema" ]; then
         mkdir -p "${SKILL_DIR}/schema"
-        cp -r "${TEMP_DIR}/claude-seo/schema/"* "${SKILL_DIR}/schema/"
+        cp -r "${TEMP_DIR}/seo-pro/schema/"* "${SKILL_DIR}/schema/"
     fi
 
     # Copy reference docs
-    if [ -d "${TEMP_DIR}/claude-seo/pdf" ]; then
+    if [ -d "${TEMP_DIR}/seo-pro/pdf" ]; then
         mkdir -p "${SKILL_DIR}/pdf"
-        cp -r "${TEMP_DIR}/claude-seo/pdf/"* "${SKILL_DIR}/pdf/"
+        cp -r "${TEMP_DIR}/seo-pro/pdf/"* "${SKILL_DIR}/pdf/"
     fi
 
     # Copy agents
     echo "→ Installing subagents..."
-    cp -r "${TEMP_DIR}/claude-seo/agents/"*.md "${AGENT_DIR}/" 2>/dev/null || true
+    cp -r "${TEMP_DIR}/seo-pro/agents/"*.md "${AGENT_DIR}/" 2>/dev/null || true
 
     # Copy shared scripts
-    if [ -d "${TEMP_DIR}/claude-seo/scripts" ]; then
+    if [ -d "${TEMP_DIR}/seo-pro/scripts" ]; then
         mkdir -p "${SKILL_DIR}/scripts"
-        cp -r "${TEMP_DIR}/claude-seo/scripts/"* "${SKILL_DIR}/scripts/"
+        cp -r "${TEMP_DIR}/seo-pro/scripts/"* "${SKILL_DIR}/scripts/"
     fi
 
     # Copy hooks
-    if [ -d "${TEMP_DIR}/claude-seo/hooks" ]; then
+    if [ -d "${TEMP_DIR}/seo-pro/hooks" ]; then
         mkdir -p "${SKILL_DIR}/hooks"
-        cp -r "${TEMP_DIR}/claude-seo/hooks/"* "${SKILL_DIR}/hooks/"
+        cp -r "${TEMP_DIR}/seo-pro/hooks/"* "${SKILL_DIR}/hooks/"
         chmod +x "${SKILL_DIR}/hooks/"*.sh 2>/dev/null || true
         chmod +x "${SKILL_DIR}/hooks/"*.py 2>/dev/null || true
     fi
 
     # Install Python dependencies
     echo "→ Installing Python dependencies..."
-    pip install --quiet --break-system-packages -r "${TEMP_DIR}/claude-seo/requirements.txt" 2>/dev/null || \
-    pip install --quiet -r "${TEMP_DIR}/claude-seo/requirements.txt" 2>/dev/null || \
+    pip install --quiet --break-system-packages -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
+    pip install --quiet -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
     echo "⚠  Could not auto-install Python packages. Run: pip install -r requirements.txt"
 
     # Optional: Install Playwright browsers
@@ -90,13 +90,13 @@ main() {
     echo "⚠  Playwright browser install failed. Screenshots won't work. Run: playwright install chromium"
 
     echo ""
-    echo "✓ Claude SEO installed successfully!"
+    echo "✓ SEO Pro installed successfully!"
     echo ""
     echo "Usage:"
     echo "  1. Start Claude Code:  claude"
     echo "  2. Run commands:       /seo audit https://example.com"
     echo ""
-    echo "To uninstall: curl -fsSL ${REPO_URL}/raw/main/uninstall.sh | bash"
+    echo "To uninstall: curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/uninstall.sh | bash"
 }
 
 main "$@"

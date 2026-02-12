@@ -16,13 +16,13 @@ Comprehensive SEO analysis skill for Claude Code. Covers technical SEO, on-page 
 ### One-Command Install (Unix/macOS/Linux)
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/seo-pro/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/install.sh | bash
 ```
 
 ### Manual Install
 
 ```bash
-git clone https://github.com/AgriciDaniel/seo-pro.git
+git clone https://github.com/hashangit/seo-pro.git
 cd seo-pro
 ./install.sh
 ```
@@ -30,7 +30,7 @@ cd seo-pro
 ### Windows
 
 ```powershell
-irm https://raw.githubusercontent.com/AgriciDaniel/seo-pro/main/install.ps1 | iex
+irm https://raw.githubusercontent.com/hashangit/seo-pro/main/install.ps1 | iex
 ```
 
 ## Quick Start
@@ -187,7 +187,7 @@ See `schema/templates.json` for ready-to-use JSON-LD snippets.
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/uninstall.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/uninstall.sh | bash
 ```
 
 ### MCP Integrations
@@ -212,4 +212,4 @@ Contributions welcome! Please read the guidelines in `docs/` before submitting P
 
 ---
 
-Built for Claude Code by [@AgriciDaniel](https://github.com/AgriciDaniel)
+Built for Claude Code by [@hashangit](https://github.com/hashangit)

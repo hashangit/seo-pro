@@ -2,7 +2,7 @@
 set -euo pipefail
 
 main() {
-    echo "→ Uninstalling Claude SEO..."
+    echo "→ Uninstalling SEO Pro..."
 
     # Remove main skill
     rm -rf "${HOME}/.claude/skills/seo"
@@ -17,7 +17,7 @@ main() {
         rm -f "${HOME}/.claude/agents/${agent}.md"
     done
 
-    echo "✓ Claude SEO uninstalled."
+    echo "✓ SEO Pro uninstalled."
 }
 
 main "$@"

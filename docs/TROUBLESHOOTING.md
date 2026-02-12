@@ -26,7 +26,7 @@ claude
 
 4. Re-run installer:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/AgriciDaniel/claude-seo/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/hashangit/seo-pro/main/install.sh | bash
 ```
 
 ---
@@ -133,7 +133,7 @@ head -5 ~/.claude/agents/seo-technical.md
 
 3. Re-install agents:
 ```bash
-cp /path/to/claude-seo/agents/*.md ~/.claude/agents/
+cp /path/to/seo-pro/agents/*.md ~/.claude/agents/
 ```
 
 ---
