@@ -196,6 +196,7 @@ Integrates with MCP servers for live SEO data — including official servers fro
 
 ## Documentation
 
+- [Features Overview](FEATURES.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Commands Reference](docs/COMMANDS.md)
 - [Architecture](docs/ARCHITECTURE.md)
