@@ -1,10 +1,15 @@
-<!-- Updated: 2026-02-08 -->
+<!-- Updated: 2026-02-13 -->
 
 ![SEO Pro](screenshots/cover-image.jpeg)
 
 # SEO Pro
 
-Comprehensive SEO analysis skill for Claude Code. Covers technical SEO, on-page analysis, content quality (E-E-A-T), schema markup, image optimization, sitemap architecture, AI search optimization (GEO), and strategic planning.
+**SEO Pro** is now a full-featured SaaS platform for comprehensive SEO analysis. It operates in two modes:
+
+1. **Claude Code Skill** - CLI-based SEO analysis tool
+2. **SaaS Platform** - Web application with credit-based pricing
+
+Comprehensive SEO analysis covering technical SEO, on-page analysis, content quality (E-E-A-T), schema markup, image optimization, sitemap architecture, AI search optimization (GEO), and strategic planning.
 
 ![SEO Command Demo](screenshots/seo-command-demo.gif)
 
@@ -196,12 +201,31 @@ Integrates with MCP servers for live SEO data — including official servers fro
 
 ## Documentation
 
+### Claude Code Skill (CLI Tool)
 - [Features Overview](FEATURES.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Commands Reference](docs/COMMANDS.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [MCP Integration](docs/MCP-INTEGRATION.md)
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
+
+### SaaS Platform
+- [Deployment Guide](DEPLOYMENT.md) - Deploy the full SaaS platform
+- [Implementation Plans](.context/plans/) - Detailed architecture and pricing plans
+
+## Quick Start (SaaS)
+
+```bash
+# Clone the repository
+git clone https://github.com/hashangit/seo-pro.git
+cd seo-pro
+
+# Start local development
+docker-compose up -d
+
+# Frontend: http://localhost:3000
+# API Gateway: http://localhost:8080
+```
 
 ## License
 
