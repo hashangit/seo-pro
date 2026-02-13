@@ -1,0 +1,60 @@
+# SEO Pro - Local Development Environment
+# Run `docker-compose up -d` to start all services
+
+version: "3.8"
+
+services:
+  # Gateway API
+  gateway:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.gateway
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=development
+      - SUPABASE_URL=${SUPABASE_URL}
+      - SUPABASE_SERVICE_KEY=${SUPABASE_SERVICE_KEY}
+      - WORKOS_CLIENT_ID=${WORKOS_CLIENT_ID}
+      - WORKOS_AUDIENCE=${WORKOS_AUDIENCE}
+      - PAYHERE_MERCHANT_ID=${PAYHERE_MERCHANT_ID}
+      - PAYHERE_MERCHANT_SECRET=${PAYHERE_MERCHANT_SECRET}
+      - PAYHERE_SANDBOX=true
+      - FRONTEND_URL=http://localhost:3000
+      - API_URL=http://localhost:8080
+    volumes:
+      - ./api:/app/api
+      - ./workers:/app/workers
+      - ./orchestrator:/app/orchestrator
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+
+  # HTTP Worker (for local testing without full deploy)
+  http-worker:
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.http-worker
+    ports:
+      - "8081:8080"
+    environment:
+      - ENVIRONMENT=development
+    volumes:
+      - ./workers:/app/workers
+    command: uvicorn workers.http_worker:app --host 0.0.0.0 --port 8080 --reload
+
+  # Frontend (Next.js development server)
+  frontend:
+    image: node:20-alpine
+    working_dir: /app
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_SUPABASE_URL=${SUPABASE_URL}
+      - NEXT_PUBLIC_SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY}
+      - NEXT_PUBLIC_WORKOS_CLIENT_ID=${WORKOS_CLIENT_ID}
+      - NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000
+      - NEXT_PUBLIC_PAYHERE_SANDBOX=${PAYHERE_SANDBOX:-true}
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    command: sh -c "cd /app && npm install && npm run dev"
