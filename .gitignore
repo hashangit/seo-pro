@@ -29,10 +29,24 @@ build/
 venv/
 .venv/
 env/
-.env/
+
+# Environment files
+.env
+.env.local
+.env.*.local
 
 # Node (if any)
 node_modules/
+
+# Next.js
+.next/
+out/
+build/
+.vercel/
+
+# Frontend specific
+frontend/.next/
+frontend/.env.local
 
 # Logs
 *.log

@@ -1,0 +1,156 @@
+"""
+Test configuration and fixtures.
+"""
+
+import pytest
+from typing import AsyncGenerator, Optional
+import pytest_asyncio
+import os
+
+import httpx
+from fastapi import FastAPI
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
+
+from api.config import Settings
+
+
+# Override settings for testing
+@pytest.fixture(autouse=True)
+async def override_settings(monkeypatch):
+    """Override settings for testing."""
+    original_getenv = os.getenv
+    original_getenv_returns = original_getenv.return_value
+
+    def mock_getenv(key, default=None):
+        if key == "SUPABASE_URL":
+            return "https://test.supabase.co"
+        elif key == "SUPABASE_SERVICE_KEY":
+            return "test-service-key"
+        elif key == "WORKOS_AUDIENCE":
+            return "api.workos.com"
+        elif key == "WORKOS_ISSUER":
+            return "api.workos.com"
+        elif key == "HTTP_WORKER_URL":
+            return "http://localhost:8001"
+        elif key == "BROWSER_WORKER_URL":
+            return "http://localhost:8002"
+        elif key == "ORCHESTRATOR_URL":
+            return "http://localhost:8003"
+        elif key == "FRONTEND_URL":
+            return "http://localhost:3000"
+        return original_getenv_returns(key, default)
+
+    monkeypatch.setattr(os, "getenv", mock_getenv)
+
+
+@pytest.fixture
+async def httpx_client():
+    """Create HTTP client for testing."""
+    return httpx.AsyncClient(
+        base_url="http://localhost:8080",
+        timeout=30.0,
+        follow_redirects=True
+    )
+
+
+@pytest.fixture
+async def supabase_client():
+    """Create Supabase client for testing."""
+    from supabase import create_client, Client
+    return create_client(
+        "https://test.supabase.co",
+        "test-service-key"
+    )
+
+
+@pytest.fixture
+async def test_user():
+    """Create a test user for authentication."""
+    from uuid import uuid4
+    return {
+        "id": str(uuid.uuid4()),
+        "email": "test@example.com",
+        "first_name": "Test",
+        "last_name": "User",
+        "credits_balance": 100,
+        "plan_tier": "free",
+        "created_at": "2024-01-01T00:00:00Z",
+        "updated_at": "2024-01-01T00:00:00Z",
+        "last_sync": "2024-01-01T00:00:00Z"
+    }
+
+
+@pytest.fixture
+async def auth_token(test_user):
+    """Create a test JWT token."""
+    from jose import jwt
+    return jwt.encode({
+        "sub": str(test_user["id"]),
+        "email": test_user["email"],
+        "given_name": test_user["first_name"],
+        "aud": "api.workos.com",
+        "iss": "api.workos.com",
+        "exp": 9999999999,  # Far future
+    }, key="test-secret")
+
+
+@pytest.fixture
+async def app_client():
+    """Create a test FastAPI app client."""
+    from api.main import app
+    from api.config import Settings
+
+    # Override settings for testing
+    monkeypatch.setattr("api.config", "get_settings", lambda: Settings(
+        ENVIRONMENT="development",
+        SUPABASE_URL="https://test.supabase.co",
+        SUPABASE_SERVICE_KEY="test-service-key",
+        WORKOS_AUDIENCE="api.workos.com",
+        WORKOS_ISSUER="api.workos.com",
+        HTTP_WORKER_URL="http://localhost:8001",
+        BROWSER_WORKER_URL="http://localhost:8002",
+        ORCHESTRATOR_URL="http://localhost:8003",
+    ))
+
+    async with httpx.AsyncClient(app=app, base_url="http://localhost:8080") as client:
+        yield client
+
+
+@pytest.fixture
+def settings():
+    """Create test settings."""
+    return Settings(
+        ENVIRONMENT="development",
+        SUPABASE_URL="https://test.supabase.co",
+        SUPABASE_SERVICE_KEY="test-service-key",
+        WORKOS_AUDIENCE="api.workos.com",
+        WORKOS_ISSUER="api.workos.com",
+        HTTP_WORKER_URL="http://localhost:8001",
+        BROWSER_WORKER_URL="http://localhost:8002",
+        ORCHESTRATOR_URL="http://localhost:8003",
+    )
+
+
+# Test data models
+class EstimateRequest(BaseModel):
+    url: str
+
+
+class AuditRunRequest(BaseModel):
+    quote_id: str
+
+
+class CreditPurchaseRequest(BaseModel):
+    amount: int = 5
+
+
+class QuoteResponse(BaseModel):
+    quote_id: str
+
+
+class AuditStatusResponse(BaseModel):
+    id: str
+    status: str
+    results: Optional[dict] = None
