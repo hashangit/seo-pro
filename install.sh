@@ -80,14 +80,24 @@ main() {
 
     # Install Python dependencies
     echo "→ Installing Python dependencies..."
-    pip install --quiet --break-system-packages -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
-    pip install --quiet -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
-    echo "⚠  Could not auto-install Python packages. Run: pip install -r requirements.txt"
+    if command -v uv >/dev/null 2>&1; then
+        uv pip install -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
+        echo "⚠  Could not auto-install Python packages. Run: uv pip install -r requirements.txt"
+    else
+        pip install --quiet --break-system-packages -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
+        pip install --quiet -r "${TEMP_DIR}/seo-pro/requirements.txt" 2>/dev/null || \
+        echo "⚠  Could not auto-install Python packages. Run: pip install -r requirements.txt"
+    fi
 
     # Optional: Install Playwright browsers
     echo "→ Installing Playwright browsers (optional)..."
-    python3 -m playwright install chromium 2>/dev/null || \
-    echo "⚠  Playwright browser install failed. Screenshots won't work. Run: playwright install chromium"
+    if [ -x "${HOME}/.venv/bin/playwright" ]; then
+        "${HOME}/.venv/bin/playwright" install chromium 2>/dev/null || \
+        echo "⚠  Playwright browser install failed. Screenshots won't work. Run: playwright install chromium"
+    else
+        python3 -m playwright install chromium 2>/dev/null || \
+        echo "⚠  Playwright browser install failed. Screenshots won't work. Run: playwright install chromium"
+    fi
 
     echo ""
     echo "✓ SEO Pro installed successfully!"
