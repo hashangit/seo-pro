@@ -17,7 +17,10 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID || "";
+  const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
+  if (!clientId) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_WORKOS_CLIENT_ID");
+  }
   const redirectUri = process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI || "http://localhost:3000";
 
   return (

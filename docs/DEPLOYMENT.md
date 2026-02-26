@@ -62,15 +62,7 @@ gcloud services enable \
 4. Enable identity providers
 5. Note Client ID and Audience
 
-### 4. WorkOS Application
-
-1. Go to https://dashboard.workos.com
-2. Create new application (AuthKit)
-3. Configure redirect URLs
-4. Enable identity providers
-5. Note Client ID and Audience
-
-### 5. Z.AI API Key (for GLM Models)
+### 4. Z.AI API Key (for GLM Models)
 
 The SDK Worker uses GLM-4.7 via Z.AI's Anthropic-compatible endpoint for cost-effective AI analysis.
 
