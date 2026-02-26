@@ -140,21 +140,13 @@ jobs:
           push: false
           tags: seo-pro/gateway:test
 
-      - name: Build HTTP Worker image
+      - name: Build SDK Worker image
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./deploy/Dockerfile.http-worker
+          file: ./deploy/Dockerfile.sdk-worker
           push: false
-          tags: seo-pro/http-worker:test
-
-      - name: Build Browser Worker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/Dockerfile.browser-worker
-          push: false
-          tags: seo-pro/browser-worker:test
+          tags: seo-pro/sdk-worker:test
 
       - name: Build Orchestrator image
         uses: docker/build-push-action@v5

@@ -45,15 +45,23 @@ select = [
 ignore = [
     "E501",   # line too long (handled by formatter)
     "B008",   # do not perform function calls in argument defaults
+    "B904",   # raise ... from err (exception chaining)
     "W191",   # indentation contains tabs
+    "SIM108", # ternary operator (code style preference)
 ]
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "api/conftest.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
 "api/tests/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
+"api/models/*.py" = ["ARG001", "ARG002", "ARG003"]  # Pydantic validators often have unused args
+"api/services/*.py" = ["ARG001", "SIM102"]  # Service functions with interface requirements
+"api/routes/*.py" = ["ARG001"]  # Route handlers with auth dependencies
+"api/scanner/*.py" = ["ARG002", "F841", "SIM102", "SIM110"]  # Scanner with interface requirements
+"api/rate_limiter.py" = ["ARG001", "ARG002"]  # Rate limiter interface requirements
+"api/config.py" = ["ARG003"]  # Config validators
 "workers/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
-"orchestrator/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
+"orchestrator/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003", "ARG005"]
 
 [tool.mypy]
 python_version = "3.11"

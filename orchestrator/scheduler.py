@@ -24,6 +24,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 from api.utils.url_validator import validate_url_safe
 
 # ============================================================================
+# FastAPI App
+# ============================================================================
+
+app = FastAPI(title="SEO Pro Orchestrator")
+
+# ============================================================================
 # Configuration
 # ============================================================================
 
@@ -228,24 +234,6 @@ async def update_audit_state_on_task_completion(audit_id: str, task_id: str, sta
 
     # Check for audit completion
     await update_audit_status(audit_id)
-
-
-app = FastAPI(title="SEO Pro Orchestrator")
-
-# Configuration
-PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
-LOCATION = os.getenv("CLOUD_RUN_LOCATION", "us-central1")
-QUEUE_PATH = os.getenv(
-    "QUEUE_PATH", "projects/{project}/locations/{location}/queues/seo-audit-queue"
-)
-HTTP_WORKER_URL = os.getenv("HTTP_WORKER_URL")
-BROWSER_WORKER_URL = os.getenv("BROWSER_WORKER_URL")
-ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL")
-
-# Supabase
-SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 
 def get_task_client():

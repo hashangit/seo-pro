@@ -8,9 +8,6 @@
  * - Works on both client and server side
  */
 
-// Log levels for potential future use with external logging services
-const _LOG_LEVELS = ["error", "warn", "info", "debug"] as const;
-
 const isDev = process.env.NODE_ENV !== "production";
 const isClient = typeof window !== "undefined";
 
