@@ -5,9 +5,7 @@ Validates URLs and prevents Server-Side Request Forgery attacks.
 """
 
 import ipaddress
-from typing import Optional
 from urllib.parse import urlparse
-
 
 # Blocked metadata endpoints and internal IPs
 BLOCKED_HOSTNAMES = {
@@ -48,13 +46,13 @@ PRIVATE_IP_PREFIXES = [
 
 # IPv6 private/reserved ranges (prefixes to block)
 IPV6_BLOCKED_PREFIXES = [
-    "::1",        # Loopback
-    "::",         # Unspecified
-    "fc",         # Unique local (fc00::/7)
-    "fd",         # Unique local (fd00::/8)
-    "fe80",       # Link-local
-    "fe::",       # Link-local (alternative)
-    "ff",         # Multicast
+    "::1",  # Loopback
+    "::",  # Unspecified
+    "fc",  # Unique local (fc00::/7)
+    "fd",  # Unique local (fd00::/8)
+    "fe80",  # Link-local
+    "fe::",  # Link-local (alternative)
+    "ff",  # Multicast
 ]
 
 # Allowed schemes
@@ -64,7 +62,7 @@ ALLOWED_SCHEMES = {"http", "https"}
 ALLOWED_PORTS = {80, 443, None}
 
 
-def validate_url_safe(url: str) -> tuple[bool, Optional[str]]:
+def validate_url_safe(url: str) -> tuple[bool, str | None]:
     """
     Validate URL and prevent SSRF attacks.
 
@@ -79,7 +77,7 @@ def validate_url_safe(url: str) -> tuple[bool, Optional[str]]:
 
         # Check scheme
         if parsed.scheme not in ALLOWED_SCHEMES:
-            return False, f"Invalid URL scheme. Only http and https are allowed."
+            return False, "Invalid URL scheme. Only http and https are allowed."
 
         # Check hostname exists
         if not parsed.hostname:

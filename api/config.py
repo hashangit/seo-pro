@@ -5,12 +5,11 @@ Centralized configuration with validation and type safety.
 Compatible with both pydantic v2 and pydantic-settings.
 """
 
-import os
-from typing import Literal, Optional
+from typing import Literal
 
 # Try pydantic-settings first (recommended for v2.10+)
 try:
-    from pydantic_settings import BaseSettings, SettingsConfigDict, Field
+    from pydantic_settings import BaseSettings, Field, SettingsConfigDict
     from pydantic_settings import field_validator as validator_decorator
 
     class Settings(BaseSettings):
@@ -18,8 +17,7 @@ try:
 
         # Environment
         ENVIRONMENT: Literal["development", "production", "staging"] = Field(
-            default="development",
-            description="Application environment"
+            default="development", description="Application environment"
         )
 
         # Supabase
@@ -39,12 +37,12 @@ try:
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-        SDK_WORKER_URL: Optional[str] = None
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
 
         # Orchestrator
-        ORCHESTRATOR_URL: Optional[str] = None
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -58,20 +56,20 @@ try:
         PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: Optional[str] = None
-        PAYHERE_ALLOWED_IPS: Optional[str] = None
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
             default=False,
-            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)",
         )
 
         model_config: SettingsConfigDict = {
             "case_sensitive": False,
             "env_file": ".env",
             "env_prefix": "SEO_PRO_",
-            "extra": "ignore"
+            "extra": "ignore",
         }
 
         @validator_decorator("ENVIRONMENT")
@@ -138,8 +136,7 @@ except ImportError:
 
         # Environment
         ENVIRONMENT: Literal["development", "production", "staging"] = Field(
-            default="development",
-            description="Application environment"
+            default="development", description="Application environment"
         )
 
         # Supabase
@@ -159,12 +156,12 @@ except ImportError:
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-        SDK_WORKER_URL: Optional[str] = None
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
 
         # Orchestrator
-        ORCHESTRATOR_URL: Optional[str] = None
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -178,13 +175,13 @@ except ImportError:
         PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: Optional[str] = None
-        PAYHERE_ALLOWED_IPS: Optional[str] = None
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
             default=False,
-            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)",
         )
 
         class Config:
@@ -249,7 +246,7 @@ except ImportError:
 
 
 # Global settings instance
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
@@ -280,10 +277,12 @@ def validate_required_settings() -> None:
         }
 
         # Workers are required in production
-        required_vars.update({
-            "HTTP_WORKER_URL": "HTTP worker URL for task execution",
-            "BROWSER_WORKER_URL": "Browser worker URL for visual analysis",
-        })
+        required_vars.update(
+            {
+                "HTTP_WORKER_URL": "HTTP worker URL for task execution",
+                "BROWSER_WORKER_URL": "Browser worker URL for visual analysis",
+            }
+        )
 
     # Validate
     for var_name, description in required_vars.items():

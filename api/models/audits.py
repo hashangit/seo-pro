@@ -4,8 +4,8 @@ Audit-related Pydantic Models
 Request and response models for audit operations.
 """
 
-from typing import Optional
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel
 
 try:
     from pydantic import field_validator
@@ -15,8 +15,9 @@ except ImportError:
 
 class AuditEstimateRequest(BaseModel):
     """Audit estimate request."""
+
     url: str
-    max_pages: Optional[int] = None
+    max_pages: int | None = None
 
     @field_validator("url")
     @classmethod
@@ -28,8 +29,9 @@ class AuditEstimateRequest(BaseModel):
 
 class URLDiscoveryRequest(BaseModel):
     """Request to discover URLs for a site."""
+
     url: str
-    sitemap_url: Optional[str] = None  # Manual sitemap URL if auto-discovery fails
+    sitemap_url: str | None = None  # Manual sitemap URL if auto-discovery fails
 
     @field_validator("url")
     @classmethod
@@ -48,17 +50,19 @@ class URLDiscoveryRequest(BaseModel):
 
 class URLDiscoveryResponse(BaseModel):
     """Response with discovered URLs."""
+
     urls: list[str]
     source: str  # "sitemap", "homepage", "manual_sitemap", "error"
     confidence: float
     sitemap_found: bool
-    sitemap_url: Optional[str]
-    warning: Optional[str] = None
-    error: Optional[str] = None
+    sitemap_url: str | None
+    warning: str | None = None
+    error: str | None = None
 
 
 class AuditEstimateResponse(BaseModel):
     """Audit estimate response."""
+
     url: str
     estimated_pages: int
     credits_required: int
@@ -71,24 +75,27 @@ class AuditEstimateResponse(BaseModel):
 
 class AuditRunRequest(BaseModel):
     """Run audit request."""
+
     quote_id: str
-    selected_urls: Optional[list[str]] = None  # URLs selected by user for site audit
+    selected_urls: list[str] | None = None  # URLs selected by user for site audit
 
 
 class AuditRunResponse(BaseModel):
     """Run audit response."""
+
     audit_id: str
     status: str
 
 
 class AuditStatusResponse(BaseModel):
     """Audit status response."""
+
     id: str
     url: str
     status: str
     page_count: int
     credits_used: int
     created_at: str
-    completed_at: Optional[str]
-    results: Optional[dict]
-    error_message: Optional[str]
+    completed_at: str | None
+    results: dict | None
+    error_message: str | None

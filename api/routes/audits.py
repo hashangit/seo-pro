@@ -8,7 +8,7 @@ from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import get_settings
+from api.core.dependencies import get_current_user
 from api.models.audits import (
     AuditEstimateRequest,
     AuditEstimateResponse,
@@ -18,20 +18,17 @@ from api.models.audits import (
     URLDiscoveryRequest,
     URLDiscoveryResponse,
 )
-from api.services.supabase import get_supabase_client
-from api.services.credits import calculate_credits, format_cost_breakdown, CREDITS_PER_DOLLAR
 from api.services.audits import create_pending_quote, run_audit_with_quote
-from api.core.dependencies import get_current_user
+from api.services.credits import calculate_credits, format_cost_breakdown
+from api.services.supabase import get_supabase_client
+from config import get_settings
 
 router = APIRouter(prefix="/api/v1/audit", tags=["Audits"])
 settings = get_settings()
 
 
 @router.post("/discover", response_model=URLDiscoveryResponse)
-async def discover_site_urls(
-    request: URLDiscoveryRequest,
-    user: dict = Depends(get_current_user)
-):
+async def discover_site_urls(request: URLDiscoveryRequest, user: dict = Depends(get_current_user)):
     """
     Discover all URLs for a site.
 
@@ -67,14 +64,13 @@ async def discover_site_urls(
         sitemap_found=result.get("sitemap_found", False),
         sitemap_url=result.get("sitemap_url"),
         warning=result.get("warning"),
-        error=result.get("error")
+        error=result.get("error"),
     )
 
 
 @router.post("/estimate", response_model=AuditEstimateResponse)
 async def estimate_audit_cost(
-    request: AuditEstimateRequest,
-    user: dict = Depends(get_current_user)
+    request: AuditEstimateRequest, user: dict = Depends(get_current_user)
 ):
     """
     Estimate audit cost before charging.
@@ -105,7 +101,7 @@ async def estimate_audit_cost(
         url=request.url,
         page_count=page_count,
         credits_required=credits,
-        metadata={"original_page_count": page_info.get("page_count")}
+        metadata={"original_page_count": page_info.get("page_count")},
     )
 
     return AuditEstimateResponse(
@@ -116,15 +112,12 @@ async def estimate_audit_cost(
         cost_usd=cost_usd,
         breakdown=format_cost_breakdown(page_count, credits),
         quote_id=quote_id,
-        expires_at=(datetime.utcnow() + timedelta(minutes=30)).isoformat()
+        expires_at=(datetime.utcnow() + timedelta(minutes=30)).isoformat(),
     )
 
 
 @router.post("/run", response_model=AuditRunResponse)
-async def run_audit(
-    request: AuditRunRequest,
-    http_user: dict = Depends(get_current_user)
-):
+async def run_audit(request: AuditRunRequest, http_user: dict = Depends(get_current_user)):
     """
     Run audit after user confirms quote.
     Deducts credits atomically and starts analysis.
@@ -132,22 +125,14 @@ async def run_audit(
     DEV MODE: When enabled, skips credit deduction for development.
     """
     result = await run_audit_with_quote(
-        quote_id=request.quote_id,
-        user_id=http_user["id"],
-        selected_urls=request.selected_urls
+        quote_id=request.quote_id, user_id=http_user["id"], selected_urls=request.selected_urls
     )
 
-    return AuditRunResponse(
-        audit_id=result["audit_id"],
-        status=result["status"]
-    )
+    return AuditRunResponse(audit_id=result["audit_id"], status=result["status"])
 
 
 @router.get("/{audit_id}", response_model=AuditStatusResponse)
-async def get_audit_status(
-    audit_id: str,
-    user: dict = Depends(get_current_user)
-):
+async def get_audit_status(audit_id: str, user: dict = Depends(get_current_user)):
     """Get audit status and results."""
     supabase = get_supabase_client()
 
@@ -170,24 +155,23 @@ async def get_audit_status(
         created_at=audit["created_at"],
         completed_at=audit.get("completed_at"),
         results=audit.get("results_json"),
-        error_message=audit.get("error_message")
+        error_message=audit.get("error_message"),
     )
 
 
 @router.get("")
-async def list_audits(
-    user: dict = Depends(get_current_user),
-    limit: int = 100,
-    offset: int = 0
-):
+async def list_audits(user: dict = Depends(get_current_user), limit: int = 100, offset: int = 0):
     """List user's audits with pagination."""
     supabase = get_supabase_client()
 
-    result = supabase.table("audits").select("*")\
-        .eq("user_id", user["id"])\
-        .order("created_at", desc=True)\
-        .range(offset, limit)\
+    result = (
+        supabase.table("audits")
+        .select("*")
+        .eq("user_id", user["id"])
+        .order("created_at", desc=True)
+        .range(offset, limit)
         .execute()
+    )
 
     audits = result.data if result.data else []
     total_count = len(audits)
@@ -197,5 +181,5 @@ async def list_audits(
         "total": total_count,
         "limit": limit,
         "offset": offset,
-        "has_more": offset + limit < total_count
+        "has_more": offset + limit < total_count,
     }

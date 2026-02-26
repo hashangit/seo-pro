@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertCircle, Infinity } from "lucide-react";
+import { AlertCircle, Infinity as InfinityIcon } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -18,7 +18,7 @@ export function PurchaseCredits() {
     <Card className="mx-auto max-w-md">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Infinity className="h-6 w-6 text-primary" />
+          <InfinityIcon className="h-6 w-6 text-primary" />
           Dev Mode Active
         </CardTitle>
         <CardDescription>

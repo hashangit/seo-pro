@@ -5,14 +5,14 @@ System health and readiness endpoints.
 """
 
 import httpx
-from fastapi import APIRouter, Request, HTTPException
+from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from config import get_settings
-from api.models.common import HealthResponse
-from api.services.supabase import get_supabase_client
-from api.services.auth import get_jwks, invalidate_jwks_cache
 from api.core.dependencies import get_internal_secret
+from api.models.common import HealthResponse
+from api.services.auth import get_jwks, invalidate_jwks_cache
+from api.services.supabase import get_supabase_client
+from config import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["System"])
 settings = get_settings()
@@ -60,7 +60,7 @@ async def readiness_check():
 
     return JSONResponse(
         content={"status": "ready" if all_ok else "not_ready", "checks": checks},
-        status_code=status_code
+        status_code=status_code,
     )
 
 

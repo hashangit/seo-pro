@@ -6,7 +6,6 @@ Handles submission of tasks to Google Cloud Tasks queue.
 
 import json
 import uuid
-from typing import Optional
 
 from fastapi import HTTPException
 
@@ -14,11 +13,7 @@ from config import get_settings
 
 
 async def submit_audit_to_orchestrator(
-    audit_id: str,
-    url: str,
-    page_count: int,
-    user_id: str,
-    page_urls: Optional[list[str]] = None
+    audit_id: str, url: str, page_count: int, user_id: str, page_urls: list[str] | None = None
 ):
     """Submit audit job to SDK Worker for unified analysis."""
     settings = get_settings()
@@ -26,8 +21,7 @@ async def submit_audit_to_orchestrator(
 
     if not sdk_worker_url:
         raise HTTPException(
-            status_code=503,
-            detail="SDK Worker not configured. Please contact support."
+            status_code=503, detail="SDK Worker not configured. Please contact support."
         )
 
     # Submit single task to SDK Worker with full analysis
@@ -35,10 +29,7 @@ async def submit_audit_to_orchestrator(
 
 
 async def submit_sdk_task(
-    audit_id: str,
-    url: str,
-    worker_url: str,
-    page_urls: Optional[list[str]] = None
+    audit_id: str, url: str, worker_url: str, page_urls: list[str] | None = None
 ) -> str:
     """Submit audit task to SDK Worker."""
     from google.cloud import tasks_v2
@@ -46,11 +37,7 @@ async def submit_sdk_task(
     settings = get_settings()
     client = tasks_v2.CloudTasksClient()
 
-    payload = {
-        "audit_id": audit_id,
-        "url": url,
-        "analysis_type": "full"
-    }
+    payload = {"audit_id": audit_id, "url": url, "analysis_type": "full"}
 
     # Include page URLs if provided (for site audits with user-selected pages)
     if page_urls:

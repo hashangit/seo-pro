@@ -8,10 +8,10 @@ DEV MODE: Credits are unlimited for development.
 
 from fastapi import APIRouter, Depends
 
-from config import get_settings
+from api.core.dependencies import get_current_user
 from api.models.credits import CreditBalanceResponse, CreditHistoryResponse
 from api.services.supabase import get_supabase_client
-from api.core.dependencies import get_current_user
+from config import get_settings
 
 router = APIRouter(prefix="/api/v1/credits", tags=["Credits"])
 settings = get_settings()
@@ -27,10 +27,7 @@ async def get_credit_balance(user: dict = Depends(get_current_user)):
 
     # DEV MODE: Return unlimited balance
     if settings.DEV_MODE:
-        return CreditBalanceResponse(
-            balance=999999,
-            formatted="Unlimited (Dev Mode)"
-        )
+        return CreditBalanceResponse(balance=999999, formatted="Unlimited (Dev Mode)")
 
     # Fetch fresh balance from database
     result = supabase.table("users").select("credits_balance").eq("id", user["id"]).execute()
@@ -41,8 +38,7 @@ async def get_credit_balance(user: dict = Depends(get_current_user)):
         balance = 0
 
     return CreditBalanceResponse(
-        balance=balance,
-        formatted=f"{balance} credit{'s' if balance != 1 else ''}"
+        balance=balance, formatted=f"{balance} credit{'s' if balance != 1 else ''}"
     )
 
 
@@ -51,18 +47,21 @@ async def get_credit_history(user: dict = Depends(get_current_user)):
     """Get user's credit transaction history."""
     supabase = get_supabase_client()
 
-    result = supabase.table("credit_transactions").select("*").eq(
-        "user_id", user["id"]
-    ).order("created_at", desc=True).limit(100).execute()
+    result = (
+        supabase.table("credit_transactions")
+        .select("*")
+        .eq("user_id", user["id"])
+        .order("created_at", desc=True)
+        .limit(100)
+        .execute()
+    )
 
     transactions = result.data if result.data else []
     total_purchased = sum(t["amount"] for t in transactions if t["amount"] > 0)
     total_spent = abs(sum(t["amount"] for t in transactions if t["amount"] < 0))
 
     return CreditHistoryResponse(
-        transactions=transactions,
-        total_purchased=total_purchased,
-        total_spent=total_spent
+        transactions=transactions, total_purchased=total_purchased, total_spent=total_spent
     )
 
 
@@ -77,5 +76,5 @@ async def purchase_credits_info():
         "message": "Payment gateway integration pending",
         "dev_mode": settings.DEV_MODE,
         "note": "An IPG (International Payment Gateway) will be integrated soon. "
-                "In dev mode, all users have unlimited access."
+        "In dev mode, all users have unlimited access.",
     }

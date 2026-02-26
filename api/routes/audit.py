@@ -4,7 +4,7 @@ Audit Routes
 Handles audit estimation, execution, and status checking.
 """
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 
 router = APIRouter(prefix="/api/v1/audit", tags=["audits"])
 

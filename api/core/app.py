@@ -7,8 +7,8 @@ Creates and configures the FastAPI application instance.
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from config import get_settings
 from api.core.middleware import add_security_headers
+from config import get_settings
 
 
 def create_app() -> FastAPI:
@@ -20,7 +20,7 @@ def create_app() -> FastAPI:
         description="SEO analysis platform with credit-based pricing",
         version="1.0.0",
         docs_url="/docs" if settings.docs_enabled else None,
-        redoc_url="/redoc" if settings.docs_enabled else None
+        redoc_url="/redoc" if settings.docs_enabled else None,
     )
 
     # CORS middleware

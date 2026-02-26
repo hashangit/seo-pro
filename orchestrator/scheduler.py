@@ -7,21 +7,21 @@ Coordinates parallel execution of audit tasks across workers.
 import asyncio
 import json
 import os
-import uuid
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
-
-from fastapi import FastAPI, HTTPException, Request
-from pydantic import BaseModel, Field
-from google.cloud import tasks_v2
-from supabase import create_client
-import httpx
 
 # Import URL validator for SSRF protection
 import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
-from api.utils.url_validator import validate_url_safe, is_valid_url_format
+import uuid
+from datetime import datetime
+from typing import Any
 
+from fastapi import FastAPI, HTTPException
+from google.cloud import tasks_v2
+from pydantic import BaseModel, Field
+
+from supabase import create_client
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+from api.utils.url_validator import validate_url_safe
 
 # ============================================================================
 # Configuration
@@ -29,7 +29,9 @@ from api.utils.url_validator import validate_url_safe, is_valid_url_format
 
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
 LOCATION = os.getenv("CLOUD_RUN_LOCATION", "us-central1")
-QUEUE_PATH = os.getenv("QUEUE_PATH") or f"projects/{PROJECT_ID}/locations/{LOCATION}/queues/seo-audit-queue"
+QUEUE_PATH = (
+    os.getenv("QUEUE_PATH") or f"projects/{PROJECT_ID}/locations/{LOCATION}/queues/seo-audit-queue"
+)
 HTTP_WORKER_URL = os.getenv("HTTP_WORKER_URL")
 BROWSER_WORKER_URL = os.getenv("BROWSER_WORKER_URL")
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL")
@@ -41,43 +43,50 @@ supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
 
 # Task timeout configuration
 TASK_TIMEOUT_SECONDS = int(os.getenv("TASK_TIMEOUT_SECONDS", "300"))
-AUDIT_COMPLETION_TIMEOUT_SECONDS = int(os.getenv("AUDIT_COMPLETION_TIMEOUT_SECONDS", "3600"))  # 1 hour
+AUDIT_COMPLETION_TIMEOUT_SECONDS = int(
+    os.getenv("AUDIT_COMPLETION_TIMEOUT_SECONDS", "3600")
+)  # 1 hour
 
 
 # ============================================================================
 # Request/Response Models
 # ============================================================================
 
+
 class SubmitAuditRequest(BaseModel):
     """Request model for audit submission with idempotency."""
+
     user_id: str
     url: str
     page_count: int
-    idempotency_key: Optional[str] = Field(None, description="Unique key to prevent duplicate submissions")
+    idempotency_key: str | None = Field(
+        None, description="Unique key to prevent duplicate submissions"
+    )
 
 
 class TaskStatusUpdate(BaseModel):
     """Task status update from worker."""
+
     task_id: str
     audit_id: str
     status: str
-    results_json: Optional[Dict[str, Any]] = None
-    error_message: Optional[str] = None
+    results_json: dict[str, Any] | None = None
+    error_message: str | None = None
 
 
 # ============================================================================
 # Audit State Management
 # ============================================================================
 
-_audit_state: Dict[str, Dict[str, Any]] = {}
+_audit_state: dict[str, dict[str, Any]] = {}
 
 
-def get_audit_state(audit_id: str) -> Dict[str, Any]:
+def get_audit_state(audit_id: str) -> dict[str, Any]:
     """Get current audit state."""
     return _audit_state.get(audit_id, {})
 
 
-def set_audit_state(audit_id: str, state: Dict[str, Any]) -> None:
+def set_audit_state(audit_id: str, state: dict[str, Any]) -> None:
     """Set audit state."""
     _audit_state[audit_id] = state
 
@@ -108,10 +117,9 @@ async def update_audit_status(audit_id: str) -> None:
     # Check if all tasks done
     if completed_tasks >= total_tasks and total_tasks > 0:
         # All tasks completed - update audit
-        supabase.table("audits").update({
-            "status": "completed",
-            "completed_at": "now()"
-        }).eq("id", audit_id).execute()
+        supabase.table("audits").update({"status": "completed", "completed_at": "now()"}).eq(
+            "id", audit_id
+        ).execute()
 
         # Clean up state
         _audit_state.pop(audit_id, None)
@@ -120,6 +128,7 @@ async def update_audit_status(audit_id: str) -> None:
 # ============================================================================
 # Health Check Enhancement
 # ============================================================================
+
 
 @app.get("/health")
 async def health():
@@ -162,6 +171,7 @@ async def health():
 # Task Status Update Endpoint (for workers)
 # ============================================================================
 
+
 @app.post("/task-update")
 async def update_task_status(update: TaskStatusUpdate):
     """Receive task status updates from workers."""
@@ -179,7 +189,7 @@ async def update_task_status(update: TaskStatusUpdate):
         raise HTTPException(status_code=403, detail="Task does not belong to this audit")
 
     # Update task status
-    update_data: Dict[str, Any] = {"status": status}
+    update_data: dict[str, Any] = {"status": status}
 
     if status in ["completed", "failed"]:
         update_data["completed_at"] = "now()"
@@ -203,11 +213,7 @@ async def update_audit_state_on_task_completion(audit_id: str, task_id: str, sta
     state = get_audit_state(audit_id)
 
     if not state:
-        state = {
-            "total_tasks": 0,
-            "completed_tasks": 0,
-            "tasks": {}
-        }
+        state = {"total_tasks": 0, "completed_tasks": 0, "tasks": {}}
         set_audit_state(audit_id, state)
 
     # Update task completion
@@ -223,12 +229,15 @@ async def update_audit_state_on_task_completion(audit_id: str, task_id: str, sta
     # Check for audit completion
     await update_audit_status(audit_id)
 
+
 app = FastAPI(title="SEO Pro Orchestrator")
 
 # Configuration
 PROJECT_ID = os.getenv("GOOGLE_CLOUD_PROJECT")
 LOCATION = os.getenv("CLOUD_RUN_LOCATION", "us-central1")
-QUEUE_PATH = os.getenv("QUEUE_PATH", "projects/{project}/locations/{location}/queues/seo-audit-queue")
+QUEUE_PATH = os.getenv(
+    "QUEUE_PATH", "projects/{project}/locations/{location}/queues/seo-audit-queue"
+)
 HTTP_WORKER_URL = os.getenv("HTTP_WORKER_URL")
 BROWSER_WORKER_URL = os.getenv("BROWSER_WORKER_URL")
 ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL")
@@ -244,11 +253,7 @@ def get_task_client():
     return tasks_v2.CloudTasksClient()
 
 
-async def create_http_task(
-    url: str,
-    payload: Dict[str, Any],
-    task_name: str
-) -> str:
+async def create_http_task(url: str, payload: dict[str, Any], task_name: str) -> str:
     """Create a Cloud Task for HTTP execution."""
     client = get_task_client()
 
@@ -270,7 +275,9 @@ async def create_http_task(
     return task_id
 
 
-async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_key: Optional[str] = None) -> Dict[str, Any]:
+async def submit_audit_job(
+    user_id: str, url: str, page_count: int, idempotency_key: str | None = None
+) -> dict[str, Any]:
     """
     Submit audit job to Cloud Tasks queue with idempotency support.
 
@@ -291,36 +298,47 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
     # Check for duplicate submission (idempotency)
     if idempotency_key:
         # Check if audit with this key already exists
-        existing = supabase.table("audits").select("*").eq("idempotency_key", idempotency_key).execute()
+        existing = (
+            supabase.table("audits").select("*").eq("idempotency_key", idempotency_key).execute()
+        )
         if existing.data:
             raise HTTPException(
                 status_code=409,
-                detail="This request has already been processed. Please refresh to see results."
+                detail="This request has already been processed. Please refresh to see results.",
             )
 
     # Create audit record
     audit_id = str(uuid.uuid4())
 
     # Initialize audit state
-    set_audit_state(audit_id, {
-        "total_tasks": 6,  # 5 tasks + 1 completion check
-        "completed_tasks": 0,
-        "tasks": {},
-        "user_id": user_id,
-        "url": url,
-        "created_at": datetime.utcnow().isoformat()
-    })
-
-    try:
-        audit_result = supabase.table("audits").insert({
-            "id": audit_id,
-            "idempotency_key": idempotency_key,
+    set_audit_state(
+        audit_id,
+        {
+            "total_tasks": 6,  # 5 tasks + 1 completion check
+            "completed_tasks": 0,
+            "tasks": {},
             "user_id": user_id,
             "url": url,
-            "status": "queued",
-            "page_count": page_count,
-            "credits_used": 0,  # Already deducted
-        }).execute()
+            "created_at": datetime.utcnow().isoformat(),
+        },
+    )
+
+    try:
+        audit_result = (
+            supabase.table("audits")
+            .insert(
+                {
+                    "id": audit_id,
+                    "idempotency_key": idempotency_key,
+                    "user_id": user_id,
+                    "url": url,
+                    "status": "queued",
+                    "page_count": page_count,
+                    "credits_used": 0,  # Already deducted
+                }
+            )
+            .execute()
+        )
 
     except Exception as e:
         # Clean up state on error
@@ -330,36 +348,12 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
     # Determine task distribution
     # 5 tasks to HTTP worker, 1 to Playwright worker
     tasks_to_create = [
-        {
-            "type": "technical",
-            "worker": "http",
-            "url": HTTP_WORKER_URL + "/analyze"
-        },
-        {
-            "type": "content",
-            "worker": "http",
-            "url": HTTP_WORKER_URL + "/analyze"
-        },
-        {
-            "type": "schema",
-            "worker": "http",
-            "url": HTTP_WORKER_URL + "/analyze"
-        },
-        {
-            "type": "sitemap",
-            "worker": "http",
-            "url": HTTP_WORKER_URL + "/analyze"
-        },
-        {
-            "type": "programmatic",
-            "worker": "http",
-            "url": HTTP_WORKER_URL + "/analyze"
-        },
-        {
-            "type": "visual",
-            "worker": "browser",
-            "url": BROWSER_WORKER_URL + "/analyze"
-        },
+        {"type": "technical", "worker": "http", "url": HTTP_WORKER_URL + "/analyze"},
+        {"type": "content", "worker": "http", "url": HTTP_WORKER_URL + "/analyze"},
+        {"type": "schema", "worker": "http", "url": HTTP_WORKER_URL + "/analyze"},
+        {"type": "sitemap", "worker": "http", "url": HTTP_WORKER_URL + "/analyze"},
+        {"type": "programmatic", "worker": "http", "url": HTTP_WORKER_URL + "/analyze"},
+        {"type": "visual", "worker": "browser", "url": BROWSER_WORKER_URL + "/analyze"},
     ]
 
     # Create tasks with error handling
@@ -367,12 +361,18 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
     for task_def in tasks_to_create:
         try:
             # Create task record
-            task_result = supabase.table("audit_tasks").insert({
-                "audit_id": audit_id,
-                "task_type": task_def["type"],
-                "worker_type": task_def["worker"],
-                "status": "queued"
-            }).execute()
+            task_result = (
+                supabase.table("audit_tasks")
+                .insert(
+                    {
+                        "audit_id": audit_id,
+                        "task_type": task_def["type"],
+                        "worker_type": task_def["worker"],
+                        "status": "queued",
+                    }
+                )
+                .execute()
+            )
 
             # Submit to Cloud Tasks with retry
             task_id = await create_http_task_with_retry(
@@ -381,9 +381,9 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
                     "audit_id": audit_id,
                     "task_id": task_result.data[0]["id"] if task_result.data else None,
                     "url": url,
-                    "type": task_def["type"]
+                    "type": task_def["type"],
                 },
-                task_name=f"{audit_id}-{task_def['type']}"
+                task_name=f"{audit_id}-{task_def['type']}",
             )
 
             task_ids.append(task_id)
@@ -393,7 +393,7 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
             state["tasks"][task_id] = {
                 "type": task_def["type"],
                 "worker": task_def["worker"],
-                "status": "queued"
+                "status": "queued",
             }
 
         except Exception as e:
@@ -404,14 +404,12 @@ async def submit_audit_job(user_id: str, url: str, page_count: int, idempotency_
 
 
 async def create_http_task_with_retry(
-    url: str,
-    payload: Dict[str, Any],
-    task_name: str,
-    max_retries: int = 3
+    url: str, payload: dict[str, Any], task_name: str, max_retries: int = 3
 ) -> str:
     """Create Cloud Task with retry logic for transient failures."""
-    from google.cloud import tasks_v2
     import json
+
+    from google.cloud import tasks_v2
 
     client = get_task_client()
     parent = client.queue_path(PROJECT_ID, LOCATION, "seo-audit-queue")
@@ -427,7 +425,7 @@ async def create_http_task_with_retry(
         "name": f"{parent}/tasks/{task_id}",
         "schedule_time": {
             "seconds": 5  # Delay task by 5 seconds
-        }
+        },
     }
 
     for attempt in range(max_retries):
@@ -436,23 +434,17 @@ async def create_http_task_with_retry(
             return response.name.split("/")[-1]
         except Exception as e:
             if attempt < max_retries - 1:
-                await asyncio.sleep(1 * (2 ** attempt))  # Exponential backoff
+                await asyncio.sleep(1 * (2**attempt))  # Exponential backoff
             else:
                 raise HTTPException(
                     status_code=503,
-                    detail=f"Failed to submit task after {max_retries} attempts: {str(e)}"
+                    detail=f"Failed to submit task after {max_retries} attempts: {str(e)}",
                 )
 
 
 # Endpoints
-@app.get("/health")
-async def health():
-    """Health check."""
-    return {"status": "healthy", "service": "orchestrator"}
-
-
 @app.post("/submit")
-async def submit_audit(data: Dict[str, Any]):
+async def submit_audit(data: dict[str, Any]):
     """
     Submit audit for processing with idempotency support.
 
@@ -466,15 +458,15 @@ async def submit_audit(data: Dict[str, Any]):
         user_id=data.get("user_id"),
         url=data.get("url"),
         page_count=data.get("page_count", 1),
-        idempotency_key=data.get("idempotency_key")
+        idempotency_key=data.get("idempotency_key"),
     )
 
 
 if __name__ == "__main__":
-    import uvicorn
-
     # Run with proper signal handling for graceful shutdown
     import signal
+
+    import uvicorn
 
     class UvicornServer(uvicorn.Server):
         """Custom server with signal handling."""
@@ -484,12 +476,7 @@ if __name__ == "__main__":
             # Cancel any pending tasks
             _audit_state.clear()
 
-    server = UvicornServer(
-        app=app,
-        host="0.0.0.0",
-        port=8080,
-        timeout_keep_alive=5
-    )
+    server = UvicornServer(app=app, host="0.0.0.0", port=8080, timeout_keep_alive=5)
 
     # Set signal handlers
     signal.signal(signal.SIGINT, lambda s, f: server.handle_exit(s))

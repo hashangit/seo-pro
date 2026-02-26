@@ -85,11 +85,7 @@ def format_individual_report_cost(count: int = 1) -> str:
 
 
 async def deduct_analysis_credits(
-    user_id: str,
-    credits: int,
-    analysis_type: str,
-    url: str,
-    supabase
+    user_id: str, credits: int, analysis_type: str, url: str, supabase
 ) -> bool:
     """
     Deduct credits for analysis. Returns True if successful.
@@ -101,19 +97,21 @@ async def deduct_analysis_credits(
         return True
 
     try:
-        deduct_result = supabase.rpc("deduct_credits", {
-            "p_user_id": user_id,
-            "p_amount": credits,
-            "p_reference_id": None,
-            "p_reference_type": "analysis",
-            "p_description": f"{analysis_type} analysis: {url}"
-        }).execute()
+        deduct_result = supabase.rpc(
+            "deduct_credits",
+            {
+                "p_user_id": user_id,
+                "p_amount": credits,
+                "p_reference_id": None,
+                "p_reference_type": "analysis",
+                "p_description": f"{analysis_type} analysis: {url}",
+            },
+        ).execute()
 
         return deduct_result.data is not None and deduct_result.data
     except Exception as e:
         if "Insufficient credits" in str(e):
             raise HTTPException(
-                status_code=402,
-                detail=f"Insufficient credits. Need {credits}, please top up."
+                status_code=402, detail=f"Insufficient credits. Need {credits}, please top up."
             )
         raise

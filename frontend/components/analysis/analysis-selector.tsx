@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import {
   estimateAnalysis,
@@ -200,15 +200,6 @@ export function AnalysisSelector() {
 
   const selectedCount = selectedTypes.size;
   const selectedUrlCount = selectedUrls.size;
-  const estimatedCredits = useMemo(() => {
-    if (activeTab === "individual") {
-      return selectedCount * CREDIT_PRICING.INDIVIDUAL_REPORT;
-    } else if (activeTab === "page_audit") {
-      return CREDIT_PRICING.PAGE_AUDIT;
-    } else {
-      return estimate?.credits_required || (selectedUrlCount * CREDIT_PRICING.SITE_AUDIT_PER_PAGE);
-    }
-  }, [activeTab, selectedCount, selectedUrlCount, estimate]);
 
   // Reset discovery when URL changes
   const handleUrlChange = (newUrl: string) => {

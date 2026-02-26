@@ -4,7 +4,7 @@ Analysis-related Pydantic Models
 Request and response models for individual and batch analysis operations.
 """
 
-from typing import Optional
+
 from pydantic import BaseModel
 
 try:
@@ -15,6 +15,7 @@ except ImportError:
 
 class AnalyzeRequest(BaseModel):
     """Request model for individual analysis endpoints."""
+
     url: str
 
     @field_validator("url")
@@ -27,22 +28,24 @@ class AnalyzeRequest(BaseModel):
 
 class AnalyzeResponse(BaseModel):
     """Response model for individual analysis endpoints."""
+
     category: str
-    score: Optional[int] = None
+    score: int | None = None
     issues: list = []
     warnings: list = []
     passes: list = []
     recommendations: list = []
-    error: Optional[str] = None
+    error: str | None = None
 
 
 class AnalysisEstimateRequest(BaseModel):
     """Analysis estimate request for any analysis type."""
+
     url: str
     analysis_mode: str = "individual"  # individual, page_audit, site_audit
-    analysis_types: Optional[list[str]] = None  # For individual mode, which types to run
-    max_pages: Optional[int] = None  # For site_audit mode (deprecated, use selected_urls)
-    selected_urls: Optional[list[str]] = None  # For site_audit mode, pre-selected URLs
+    analysis_types: list[str] | None = None  # For individual mode, which types to run
+    max_pages: int | None = None  # For site_audit mode (deprecated, use selected_urls)
+    selected_urls: list[str] | None = None  # For site_audit mode, pre-selected URLs
 
     @field_validator("url")
     @classmethod
@@ -61,18 +64,20 @@ class AnalysisEstimateRequest(BaseModel):
 
 class AnalysisEstimateResponse(BaseModel):
     """Analysis estimate response."""
+
     url: str
     analysis_mode: str
     analysis_types: list[str]
     credits_required: int
     cost_usd: float
     breakdown: str
-    estimated_pages: Optional[int] = None  # For site_audit mode
-    quote_id: Optional[str] = None  # For site_audit mode (30 min expiry)
+    estimated_pages: int | None = None  # For site_audit mode
+    quote_id: str | None = None  # For site_audit mode (30 min expiry)
 
 
 class AnalysisListResponse(BaseModel):
     """Response model for listing analyses."""
+
     analyses: list
     total: int
     limit: int
@@ -82,6 +87,7 @@ class AnalysisListResponse(BaseModel):
 
 class AnalysisStatusResponse(BaseModel):
     """Response model for a single analysis status."""
+
     id: str
     url: str
     analysis_type: str
@@ -89,6 +95,6 @@ class AnalysisStatusResponse(BaseModel):
     credits_used: int
     status: str
     created_at: str
-    completed_at: Optional[str]
-    results: Optional[dict]
-    error_message: Optional[str]
+    completed_at: str | None
+    results: dict | None
+    error_message: str | None

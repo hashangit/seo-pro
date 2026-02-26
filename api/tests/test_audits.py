@@ -3,29 +3,17 @@ Test endpoints for critical API functionality.
 """
 
 import pytest
-import pytest_asyncio
-from httpx import JSONDecodeError
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker
 
 from api.conftest import (
-    app_client,
-    httpx_client,
-    supabase_client,
-    test_user,
-    auth_token,
-    settings,
-    EstimateRequest,
     AuditRunRequest,
-    CreditPurchaseRequest,
-    QuoteResponse,
-    AuditStatusResponse
+    EstimateRequest,
+    settings,
 )
-
 
 # =============================================================================
 # Health Check Tests
 # ============================================================================
+
 
 @pytest.mark.asyncio
 async def test_health_check(app_client):
@@ -42,12 +30,12 @@ async def test_health_check(app_client):
 # Credit Balance Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_credit_balance(app_client, auth_token):
     """Test getting credit balance."""
     response = await app_client.get(
-        "/api/v1/credits/balance",
-        headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/v1/credits/balance", headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -59,14 +47,13 @@ async def test_get_credit_balance(app_client, auth_token):
 # Audit Estimate Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_estimate_audit_cost(app_client, auth_token):
     """Test audit cost estimation."""
     request = EstimateRequest(url="https://example.com")
     response = await app_client.post(
-        "/api/v1/audit/estimate",
-        json=request,
-        headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/v1/audit/estimate", json=request, headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -79,6 +66,7 @@ async def test_estimate_audit_cost(app_client, auth_token):
 # Quote Management Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_get_quote(app_client, auth_token):
     """Test getting a pending quote."""
@@ -86,7 +74,7 @@ async def test_get_quote(app_client, auth_token):
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
         json=EstimateRequest(url="https://example.com"),
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
     quote_id = estimate_response.json()["quote_id"]
 
@@ -103,6 +91,7 @@ async def test_get_quote(app_client, auth_token):
 # Audit Run Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_run_audit(app_client, auth_token):
     """Test running an audit."""
@@ -110,7 +99,7 @@ async def test_run_audit(app_client, auth_token):
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
         json=EstimateRequest(url="https://example.com"),
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
     quote_id = estimate_response.json()["quote_id"]
 
@@ -118,7 +107,7 @@ async def test_run_audit(app_client, auth_token):
     run_response = await app_client.post(
         "/api/v1/audit/run",
         json=AuditRunRequest(quote_id=quote_id),
-        headers={"Authorization": f"Bearer {auth_token}"}
+        headers={"Authorization": f"Bearer {auth_token}"},
     )
     assert run_response.status_code in [200, 402]  # 200 if success, 402 if insufficient credits
 
@@ -131,13 +120,12 @@ async def test_run_audit(app_client, auth_token):
 # Error Handling Tests
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_estimate_without_url(app_client, auth_token):
     """Test estimate without URL returns 400."""
     response = await app_client.post(
-        "/api/v1/audit/estimate",
-        json={},
-        headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/v1/audit/estimate", json={}, headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 400
 
@@ -152,7 +140,7 @@ async def test_unauthenticated_request(app_client):
 @pytest.mark.asyncio
 async def test_invalid_signature_webhook(app_client):
     """Test that invalid webhook signatures are rejected."""
-    from api.conftest import app_client, httpx_client, settings
+    from api.conftest import app_client
 
     # Prepare webhook payload
     payload = {
@@ -161,13 +149,13 @@ async def test_invalid_signature_webhook(app_client):
         "payhere_amount": "350.00",
         "payhere_currency": "LKR",
         "status_code": "2",  # Success
-        "md5sig": "INVALID_SIGNATURE"
+        "md5sig": "INVALID_SIGNATURE",
     }
 
     response = await app_client.post(
         "/api/v1/webhooks/payhere",
         data=payload,
-        headers={"Content-Type": "application/x-www-form-urlencoded"}
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
     )
 
     assert response.status_code == 400
@@ -177,6 +165,7 @@ async def test_invalid_signature_webhook(app_client):
 # =============================================================================
 # Fixtures
 # ============================================================================
+
 
 @pytest.fixture
 async def cleanup_test_data(supabase_client):
@@ -191,20 +180,25 @@ async def cleanup_test_data(supabase_client):
 @pytest.fixture
 async def sample_quote(supabase_client):
     """Create a sample quote for testing."""
-    from uuid import uuid4
 
     quote_id = str(uuid.uuid4())
 
     # Insert quote
-    await supabase_client.table("pending_audits").insert({
-        "id": quote_id,
-        "user_id": "test-user-id",
-        "url": "https://example.com",
-        "page_count": 5,
-        "credits_required": 5,
-        "status": "pending",
-        "expires_at": "now() + interval '30 minutes'"
-    }).execute()
+    await (
+        supabase_client.table("pending_audits")
+        .insert(
+            {
+                "id": quote_id,
+                "user_id": "test-user-id",
+                "url": "https://example.com",
+                "page_count": 5,
+                "credits_required": 5,
+                "status": "pending",
+                "expires_at": "now() + interval '30 minutes'",
+            }
+        )
+        .execute()
+    )
 
     return quote_id
 
@@ -213,6 +207,7 @@ async def sample_quote(supabase_client):
 # Test Run
 # ============================================================================
 
+
 @pytest.mark.asyncio
 async def test_full_audit_flow(app_client, auth_token, supabase_client):
     """
@@ -220,18 +215,25 @@ async def test_full_audit_flow(app_client, auth_token, supabase_client):
     This test requires a Supabase client with real connection.
     """
     # Create test user
-    user_response = await supabase_client.table("users").insert({
-        "id": "test-user-id",
-        "email": "audit-test@example.com",
-        "credits_balance": 100,
-        "plan_tier": "free",
-        "created_at": "now()"
-    }).execute()
+    user_response = (
+        await supabase_client.table("users")
+        .insert(
+            {
+                "id": "test-user-id",
+                "email": "audit-test@example.com",
+                "credits_balance": 100,
+                "plan_tier": "free",
+                "created_at": "now()",
+            }
+        )
+        .execute()
+    )
 
     test_user_id = user_response.data[0]["id"]
 
     # Get auth token for test user
     from api.conftest import auth_token
+
     token = auth_token(test_user_id)
 
     # 1. Estimate audit cost
@@ -239,7 +241,7 @@ async def test_full_audit_flow(app_client, auth_token, supabase_client):
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
         json=estimate_request,
-        headers={"Authorization": f"Bearer {token}"}
+        headers={"Authorization": f"Bearer {token}"},
     )
     assert estimate_response.status_code == 200
     estimate_data = estimate_response.json()
@@ -254,17 +256,14 @@ async def test_full_audit_flow(app_client, auth_token, supabase_client):
     # 3. Run audit (should succeed with 100 credits)
     run_request = AuditRunRequest(quote_id=quote_id)
     run_response = await app_client.post(
-        "/api/v1/audit/run",
-        json=run_request,
-        headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/audit/run", json=run_request, headers={"Authorization": f"Bearer {token}"}
     )
     assert run_response.status_code == 200
     run_data = run_response.json()
 
     # 4. Verify audit was created
     audit_response = await app_client.get(
-        f"/api/v1/audit/{run_data['audit_id']}",
-        headers={"Authorization": f"Bearer {token}"}
+        f"/api/v1/audit/{run_data['audit_id']}", headers={"Authorization": f"Bearer {token}"}
     )
     assert audit_response.status_code == 200
     audit_data = audit_response.json()

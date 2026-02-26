@@ -16,18 +16,18 @@ Deployed on Cloud Run with scale-to-zero.
 """
 
 import asyncio
-import json
 import os
-from typing import Any, Dict, Optional
+
+# Import shared utilities
+import sys
+from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-# Import shared utilities
-import sys
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from api.utils.url_validator import validate_url_safe, is_valid_url_format
+from api.utils.url_validator import is_valid_url_format, validate_url_safe
 
 app = FastAPI(title="SEO Pro SDK Worker")
 
@@ -36,17 +36,20 @@ app = FastAPI(title="SEO Pro SDK Worker")
 # Request/Response Models
 # ============================================================================
 
+
 class AnalyzeRequest(BaseModel):
     """Request model for SEO analysis."""
+
     url: str
-    task_id: Optional[str] = None
-    audit_id: Optional[str] = None
+    task_id: str | None = None
+    audit_id: str | None = None
     analysis_type: str = "full"  # full, technical, content, schema, visual, performance, etc.
-    prompt: Optional[str] = None  # Custom prompt override
+    prompt: str | None = None  # Custom prompt override
 
 
 class HealthResponse(BaseModel):
     """Health check response."""
+
     status: str
     worker: str
     version: str
@@ -55,6 +58,7 @@ class HealthResponse(BaseModel):
 # ============================================================================
 # Task Status Update
 # ============================================================================
+
 
 async def update_task_status(task_id: str, audit_id: str, status: str, results: Any = None):
     """Update task status in Supabase with retry logic."""
@@ -72,10 +76,7 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            update_data: Dict[str, Any] = {
-                "status": status,
-                "updated_at": "now()"
-            }
+            update_data: dict[str, Any] = {"status": status, "updated_at": "now()"}
 
             if results is not None:
                 update_data["results_json"] = results
@@ -84,7 +85,7 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
             return
         except Exception as e:
             if attempt < max_retries - 1:
-                await asyncio.sleep(0.5 * (2 ** attempt))
+                await asyncio.sleep(0.5 * (2**attempt))
             else:
                 print(f"Failed to update task status: {e}")
 
@@ -93,11 +94,10 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
 # Claude Agent SDK Integration
 # ============================================================================
 
+
 async def run_seo_analysis_with_sdk(
-    url: str,
-    analysis_type: str = "full",
-    custom_prompt: Optional[str] = None
-) -> Dict[str, Any]:
+    url: str, analysis_type: str = "full", custom_prompt: str | None = None
+) -> dict[str, Any]:
     """
     Run SEO analysis using Claude Agent SDK.
 
@@ -109,7 +109,7 @@ async def run_seo_analysis_with_sdk(
 
     This is the same architecture as Claude Code CLI!
     """
-    from claude_agent_sdk import query, ClaudeAgentOptions
+    from claude_agent_sdk import ClaudeAgentOptions, query
 
     # Determine the prompt based on analysis type
     if custom_prompt:
@@ -131,10 +131,8 @@ async def run_seo_analysis_with_sdk(
             options=ClaudeAgentOptions(
                 # Point to project root with skills/ and agents/
                 cwd=project_root,
-
                 # Load Skills and Agents from filesystem
                 setting_sources=["project"],
-
                 # Tools the agent can use
                 # - Skill: To invoke seo-audit skill
                 # - Task: For subagent delegation (seo-technical, seo-content, etc.)
@@ -156,10 +154,8 @@ async def run_seo_analysis_with_sdk(
                     "mcp__plugin_playwright_playwright__browser_network_requests",
                     "mcp__plugin_playwright_playwright__browser_evaluate",
                 ],
-
                 # Run without permission prompts (production mode)
                 permission_mode="bypassPermissions",
-
                 # Model selection (use Sonnet for cost-efficiency)
                 model="claude-sonnet-4-5-20250219",
             ),
@@ -179,7 +175,7 @@ async def run_seo_analysis_with_sdk(
                 "analysis_type": analysis_type,
                 "status": "completed",
                 "result": final_result,
-                "messages": results
+                "messages": results,
             }
         else:
             # Fallback: combine all messages
@@ -188,23 +184,19 @@ async def run_seo_analysis_with_sdk(
                 "analysis_type": analysis_type,
                 "status": "completed",
                 "result": "\n".join(str(r) for r in results if r),
-                "messages": results
+                "messages": results,
             }
 
     except Exception as e:
-        return {
-            "url": url,
-            "analysis_type": analysis_type,
-            "status": "error",
-            "error": str(e)
-        }
+        return {"url": url, "analysis_type": analysis_type, "status": "error", "error": str(e)}
 
 
 # ============================================================================
 # Fallback: Direct Analysis (when SDK not available)
 # ============================================================================
 
-async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> Dict[str, Any]:
+
+async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> dict[str, Any]:
     """
     Fallback analysis using direct API calls when Claude Agent SDK is unavailable.
 
@@ -213,12 +205,7 @@ async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> Di
     import httpx
     from bs4 import BeautifulSoup
 
-    results = {
-        "url": url,
-        "analysis_type": analysis_type,
-        "status": "completed",
-        "analyses": []
-    }
+    results = {"url": url, "analysis_type": analysis_type, "status": "completed", "analyses": []}
 
     # Fetch page
     try:
@@ -226,7 +213,7 @@ async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> Di
             response = await client.get(
                 url,
                 headers={"User-Agent": "SEO Pro/1.0 (+https://seopro.example.com/bot)"},
-                follow_redirects=True
+                follow_redirects=True,
             )
             response.raise_for_status()
 
@@ -240,45 +227,49 @@ async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> Di
                 h1s = soup.find_all("h1")
                 canonical = soup.find("link", rel="canonical")
 
-                results["analyses"].append({
-                    "category": "technical",
-                    "score": 70,
-                    "issues": [] if title else ["Missing title tag"],
-                    "warnings": [] if meta_desc else ["Missing meta description"],
-                    "passes": [f"Title: {title.text[:50]}..."] if title else [],
-                    "recommendations": [
-                        "Add meta description" if not meta_desc else None,
-                        "Add canonical URL" if not canonical else None,
-                    ]
-                })
+                results["analyses"].append(
+                    {
+                        "category": "technical",
+                        "score": 70,
+                        "issues": [] if title else ["Missing title tag"],
+                        "warnings": [] if meta_desc else ["Missing meta description"],
+                        "passes": [f"Title: {title.text[:50]}..."] if title else [],
+                        "recommendations": [
+                            "Add meta description" if not meta_desc else None,
+                            "Add canonical URL" if not canonical else None,
+                        ],
+                    }
+                )
 
             # Basic content analysis
             if analysis_type in ["full", "content"]:
                 text_content = soup.get_text()
                 word_count = len(text_content.split())
 
-                results["analyses"].append({
-                    "category": "content",
-                    "score": 60 if word_count > 300 else 40,
-                    "issues": [] if word_count > 300 else ["Thin content"],
-                    "warnings": [],
-                    "passes": [f"Word count: {word_count}"],
-                    "recommendations": [
-                        "Increase content depth" if word_count < 300 else None
-                    ]
-                })
+                results["analyses"].append(
+                    {
+                        "category": "content",
+                        "score": 60 if word_count > 300 else 40,
+                        "issues": [] if word_count > 300 else ["Thin content"],
+                        "warnings": [],
+                        "passes": [f"Word count: {word_count}"],
+                        "recommendations": ["Increase content depth" if word_count < 300 else None],
+                    }
+                )
 
             # Basic schema analysis
             if analysis_type in ["full", "schema"]:
                 json_ld = soup.find_all("script", type="application/ld+json")
-                results["analyses"].append({
-                    "category": "schema",
-                    "score": 50 if json_ld else 0,
-                    "issues": [] if json_ld else ["No structured data found"],
-                    "warnings": [],
-                    "passes": [f"Found {len(json_ld)} JSON-LD blocks"] if json_ld else [],
-                    "recommendations": ["Add JSON-LD structured data"]
-                })
+                results["analyses"].append(
+                    {
+                        "category": "schema",
+                        "score": 50 if json_ld else 0,
+                        "issues": [] if json_ld else ["No structured data found"],
+                        "warnings": [],
+                        "passes": [f"Found {len(json_ld)} JSON-LD blocks"] if json_ld else [],
+                        "recommendations": ["Add JSON-LD structured data"],
+                    }
+                )
 
     except httpx.HTTPError as e:
         results["error"] = str(e)
@@ -291,6 +282,7 @@ async def run_seo_analysis_fallback(url: str, analysis_type: str = "full") -> Di
 # Endpoints
 # ============================================================================
 
+
 @app.get("/health", response_model=HealthResponse)
 async def health():
     """Health check for Cloud Run."""
@@ -302,14 +294,12 @@ async def health():
         sdk_available = False
 
     return HealthResponse(
-        status="healthy" if sdk_available else "degraded",
-        worker="sdk",
-        version="3.0.0"
+        status="healthy" if sdk_available else "degraded", worker="sdk", version="3.0.0"
     )
 
 
 @app.post("/analyze")
-async def analyze(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze(request: AnalyzeRequest) -> dict[str, Any]:
     """
     Analyze a page using Claude Agent SDK with filesystem Skills.
 
@@ -329,10 +319,9 @@ async def analyze(request: AnalyzeRequest) -> Dict[str, Any]:
     # Try SDK first
     try:
         from claude_agent_sdk import query  # noqa: F401
+
         result = await run_seo_analysis_with_sdk(
-            url=request.url,
-            analysis_type=request.analysis_type,
-            custom_prompt=request.prompt
+            url=request.url, analysis_type=request.analysis_type, custom_prompt=request.prompt
         )
     except ImportError:
         # P0 FIX: In production, fail fast instead of using inferior fallback
@@ -340,32 +329,27 @@ async def analyze(request: AnalyzeRequest) -> Dict[str, Any]:
         if is_production:
             print("CRITICAL: Claude Agent SDK not available in production!")
             raise HTTPException(
-                status_code=503,
-                detail="Analysis service unavailable. Please try again later."
+                status_code=503, detail="Analysis service unavailable. Please try again later."
             )
 
         # Only use fallback in development
         print("Warning: Claude Agent SDK not available, using fallback (development only)")
         result = await run_seo_analysis_fallback(
-            url=request.url,
-            analysis_type=request.analysis_type
+            url=request.url, analysis_type=request.analysis_type
         )
 
     # Update task status if task_id provided
     if request.task_id and request.audit_id:
         status = "completed" if result.get("status") != "error" else "failed"
         await update_task_status(
-            task_id=request.task_id,
-            audit_id=request.audit_id,
-            status=status,
-            results=result
+            task_id=request.task_id, audit_id=request.audit_id, status=status, results=result
         )
 
     return result
 
 
 @app.post("/analyze/page")
-async def analyze_page(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_page(request: AnalyzeRequest) -> dict[str, Any]:
     """
     Deep single-page SEO analysis.
 
@@ -382,70 +366,70 @@ async def analyze_page(request: AnalyzeRequest) -> Dict[str, Any]:
 
 
 @app.post("/analyze/technical")
-async def analyze_technical(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_technical(request: AnalyzeRequest) -> dict[str, Any]:
     """Run technical SEO analysis only."""
     request.analysis_type = "technical"
     return await analyze(request)
 
 
 @app.post("/analyze/content")
-async def analyze_content(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_content(request: AnalyzeRequest) -> dict[str, Any]:
     """Run content quality analysis only."""
     request.analysis_type = "content"
     return await analyze(request)
 
 
 @app.post("/analyze/schema")
-async def analyze_schema(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_schema(request: AnalyzeRequest) -> dict[str, Any]:
     """Run schema markup analysis only."""
     request.analysis_type = "schema"
     return await analyze(request)
 
 
 @app.post("/analyze/visual")
-async def analyze_visual(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_visual(request: AnalyzeRequest) -> dict[str, Any]:
     """Run visual SEO analysis only."""
     request.analysis_type = "visual"
     return await analyze(request)
 
 
 @app.post("/analyze/performance")
-async def analyze_performance(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_performance(request: AnalyzeRequest) -> dict[str, Any]:
     """Run performance/Core Web Vitals analysis only."""
     request.analysis_type = "performance"
     return await analyze(request)
 
 
 @app.post("/analyze/geo")
-async def analyze_geo(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_geo(request: AnalyzeRequest) -> dict[str, Any]:
     """Run GEO (AI Search optimization) analysis only."""
     request.analysis_type = "geo"
     return await analyze(request)
 
 
 @app.post("/analyze/sitemap")
-async def analyze_sitemap(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_sitemap(request: AnalyzeRequest) -> dict[str, Any]:
     """Run sitemap analysis only."""
     request.analysis_type = "sitemap"
     return await analyze(request)
 
 
 @app.post("/analyze/hreflang")
-async def analyze_hreflang(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_hreflang(request: AnalyzeRequest) -> dict[str, Any]:
     """Run hreflang/international SEO analysis only."""
     request.analysis_type = "hreflang"
     return await analyze(request)
 
 
 @app.post("/analyze/images")
-async def analyze_images(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_images(request: AnalyzeRequest) -> dict[str, Any]:
     """Run image SEO analysis only."""
     request.analysis_type = "images"
     return await analyze(request)
 
 
 @app.post("/analyze/plan")
-async def analyze_plan(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_plan(request: AnalyzeRequest) -> dict[str, Any]:
     """
     Run strategic SEO planning analysis.
 
@@ -457,7 +441,7 @@ async def analyze_plan(request: AnalyzeRequest) -> Dict[str, Any]:
 
 
 @app.post("/analyze/programmatic")
-async def analyze_programmatic(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_programmatic(request: AnalyzeRequest) -> dict[str, Any]:
     """
     Run programmatic SEO analysis and planning.
 
@@ -468,7 +452,7 @@ async def analyze_programmatic(request: AnalyzeRequest) -> Dict[str, Any]:
 
 
 @app.post("/analyze/competitor-pages")
-async def analyze_competitor_pages(request: AnalyzeRequest) -> Dict[str, Any]:
+async def analyze_competitor_pages(request: AnalyzeRequest) -> dict[str, Any]:
     """
     Analyze competitor comparison pages for SEO, GEO, and AEO.
 
@@ -488,4 +472,5 @@ async def analyze_competitor_pages(request: AnalyzeRequest) -> Dict[str, Any]:
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8080)

@@ -9,23 +9,26 @@ This is the main entry point that assembles all modular components.
 
 import uvicorn
 
-# Import centralized configuration
-from config import get_settings, validate_required_settings
-
 # Import app factory
 from api.core.app import create_app
+from api.routes import analyses, audits, credits, health
+from api.services.auth import get_jwks
 
 # Import services for startup
 from api.services.supabase import get_supabase_client, reset_supabase_client
-from api.services.auth import get_jwks
+
+# Import centralized configuration
+from config import get_settings, validate_required_settings
 
 # ============================================================================
 # Environment Variable Validation
 # ============================================================================
 
+
 def validate_environment():
     """Validate required environment variables at startup."""
     validate_required_settings()
+
 
 validate_environment()
 
@@ -42,8 +45,6 @@ app = create_app()
 # Include Routers
 # ============================================================================
 
-from api.routes import health, credits, audits, analyses
-
 app.include_router(health.router)
 app.include_router(credits.router)
 app.include_router(audits.router)
@@ -53,13 +54,16 @@ app.include_router(analyses.router)
 # Startup and Shutdown Events
 # ============================================================================
 
+
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
     # DEV MODE warning for production/staging
     if settings.DEV_MODE and settings.ENVIRONMENT in ["production", "staging"]:
         print("=" * 70)
-        print("⚠️  WARNING: DEV_MODE is enabled in {} environment!".format(settings.ENVIRONMENT.upper()))
+        print(
+            f"⚠️  WARNING: DEV_MODE is enabled in {settings.ENVIRONMENT.upper()} environment!"
+        )
         print("⚠️  All credit checks are BYPASSED - users have unlimited access!")
         print("⚠️  Set DEV_MODE=false before production deployment!")
         print("=" * 70)
@@ -92,8 +96,5 @@ async def shutdown_event():
 
 if __name__ == "__main__":
     uvicorn.run(
-        "main:app",
-        host="0.0.0.0",
-        port=settings.PORT,
-        reload=settings.ENVIRONMENT == "development"
+        "main:app", host="0.0.0.0", port=settings.PORT, reload=settings.ENVIRONMENT == "development"
     )

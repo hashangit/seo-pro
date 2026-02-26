@@ -61,8 +61,6 @@ export default function CreditsPage() {
     return "secondary";
   };
 
-  const isLoading = loading || isPending;
-
   if (loading && transactions.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12">

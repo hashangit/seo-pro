@@ -4,37 +4,35 @@ Analysis Routes
 Handles individual and batch analysis operations.
 """
 
-from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from config import get_settings
+from api.core.dependencies import get_current_user
 from api.models.analyses import (
-    AnalyzeRequest,
-    AnalyzeResponse,
     AnalysisEstimateRequest,
     AnalysisEstimateResponse,
     AnalysisListResponse,
     AnalysisStatusResponse,
+    AnalyzeRequest,
+    AnalyzeResponse,
 )
-from api.services.supabase import get_supabase_client
+from api.services.analyses import (
+    INDIVIDUAL_ANALYSIS_TYPES,
+    run_individual_analysis,
+    run_page_audit_analysis,
+)
+from api.services.audits import create_pending_quote
 from api.services.credits import (
+    CREDITS_PER_DOLLAR,
     calculate_individual_report_credits,
     calculate_page_audit_credits,
     calculate_site_audit_credits,
     format_cost_breakdown,
-    format_page_audit_cost,
     format_individual_report_cost,
-    CREDITS_PER_DOLLAR,
+    format_page_audit_cost,
 )
-from api.services.audits import create_pending_quote
-from api.services.analyses import (
-    run_individual_analysis,
-    run_page_audit_analysis,
-    INDIVIDUAL_ANALYSIS_TYPES,
-)
-from api.core.dependencies import get_current_user
+from api.services.supabase import get_supabase_client
+from config import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["Analysis"])
 settings = get_settings()
@@ -44,10 +42,10 @@ settings = get_settings()
 # Analysis Estimate Endpoint
 # ============================================================================
 
+
 @router.post("/analyze/estimate", response_model=AnalysisEstimateResponse)
 async def estimate_analysis(
-    request: AnalysisEstimateRequest,
-    user: dict = Depends(get_current_user)
+    request: AnalysisEstimateRequest, user: dict = Depends(get_current_user)
 ):
     """
     Estimate credits required for any analysis type.
@@ -65,11 +63,13 @@ async def estimate_analysis(
         # Individual reports - 1 credit each
         if request.analysis_types:
             # Validate analysis types
-            invalid_types = [t for t in request.analysis_types if t not in INDIVIDUAL_ANALYSIS_TYPES]
+            invalid_types = [
+                t for t in request.analysis_types if t not in INDIVIDUAL_ANALYSIS_TYPES
+            ]
             if invalid_types:
                 raise HTTPException(
                     status_code=400,
-                    detail=f"Invalid analysis types: {invalid_types}. Valid types: {INDIVIDUAL_ANALYSIS_TYPES}"
+                    detail=f"Invalid analysis types: {invalid_types}. Valid types: {INDIVIDUAL_ANALYSIS_TYPES}",
                 )
             analysis_types = request.analysis_types
         else:
@@ -121,7 +121,7 @@ async def estimate_analysis(
             url=request.url,
             page_count=page_count,
             credits_required=credits,
-            metadata=metadata
+            metadata=metadata,
         )
 
         cost_usd = credits / CREDITS_PER_DOLLAR
@@ -134,7 +134,7 @@ async def estimate_analysis(
             cost_usd=round(cost_usd, 2),
             breakdown="\n".join(breakdown_parts),
             estimated_pages=page_count,
-            quote_id=quote_id
+            quote_id=quote_id,
         )
 
     cost_usd = credits / CREDITS_PER_DOLLAR
@@ -146,7 +146,7 @@ async def estimate_analysis(
         credits_required=credits,
         cost_usd=round(cost_usd, 2),
         breakdown="\n".join(breakdown_parts),
-        estimated_pages=1  # Individual and page audit are single page
+        estimated_pages=1,  # Individual and page audit are single page
     )
 
 
@@ -154,14 +154,15 @@ async def estimate_analysis(
 # Analyses List Endpoints
 # ============================================================================
 
+
 @router.get("/analyses", response_model=AnalysisListResponse)
 async def list_analyses(
     user: dict = Depends(get_current_user),
     limit: int = 100,
     offset: int = 0,
-    analysis_type: Optional[str] = None,
-    analysis_mode: Optional[str] = None,
-    status: Optional[str] = None
+    analysis_type: str | None = None,
+    analysis_mode: str | None = None,
+    status: str | None = None,
 ):
     """
     List user's analyses with optional filtering.
@@ -201,22 +202,19 @@ async def list_analyses(
         count_query = count_query.eq("status", status)
 
     count_result = count_query.execute()
-    total_count = count_result.count if hasattr(count_result, 'count') else len(analyses)
+    total_count = count_result.count if hasattr(count_result, "count") else len(analyses)
 
     return AnalysisListResponse(
         analyses=analyses,
         total=total_count,
         limit=limit,
         offset=offset,
-        has_more=offset + limit < total_count
+        has_more=offset + limit < total_count,
     )
 
 
 @router.get("/analyses/{analysis_id}", response_model=AnalysisStatusResponse)
-async def get_analysis_status(
-    analysis_id: str,
-    user: dict = Depends(get_current_user)
-):
+async def get_analysis_status(analysis_id: str, user: dict = Depends(get_current_user)):
     """Get status and results of a specific analysis."""
     supabase = get_supabase_client()
 
@@ -240,13 +238,14 @@ async def get_analysis_status(
         created_at=analysis["created_at"],
         completed_at=analysis.get("completed_at"),
         results=analysis.get("results_json"),
-        error_message=analysis.get("error_message")
+        error_message=analysis.get("error_message"),
     )
 
 
 # ============================================================================
 # Individual Analysis Endpoints
 # ============================================================================
+
 
 def create_analysis_response(result: dict, analysis_type: str) -> AnalyzeResponse:
     """Create AnalyzeResponse from worker result."""
@@ -256,10 +255,7 @@ def create_analysis_response(result: dict, analysis_type: str) -> AnalyzeRespons
 
 
 @router.post("/analyze/technical", response_model=AnalyzeResponse)
-async def analyze_technical(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_technical(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run technical SEO analysis only. (1 credit)
 
@@ -271,10 +267,7 @@ async def analyze_technical(
 
 
 @router.post("/analyze/content", response_model=AnalyzeResponse)
-async def analyze_content(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_content(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run content quality (E-E-A-T) analysis only. (1 credit)
 
@@ -286,10 +279,7 @@ async def analyze_content(
 
 
 @router.post("/analyze/schema", response_model=AnalyzeResponse)
-async def analyze_schema(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_schema(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run schema markup analysis only. (1 credit)
 
@@ -301,10 +291,7 @@ async def analyze_schema(
 
 
 @router.post("/analyze/geo", response_model=AnalyzeResponse)
-async def analyze_geo(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_geo(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run GEO (Generative Engine Optimization) analysis only. (1 credit)
 
@@ -316,10 +303,7 @@ async def analyze_geo(
 
 
 @router.post("/analyze/sitemap", response_model=AnalyzeResponse)
-async def analyze_sitemap(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_sitemap(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run sitemap analysis only. (1 credit)
 
@@ -330,10 +314,7 @@ async def analyze_sitemap(
 
 
 @router.post("/analyze/hreflang", response_model=AnalyzeResponse)
-async def analyze_hreflang(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_hreflang(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run hreflang/international SEO analysis only. (1 credit)
 
@@ -345,10 +326,7 @@ async def analyze_hreflang(
 
 
 @router.post("/analyze/images", response_model=AnalyzeResponse)
-async def analyze_images(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_images(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run image SEO analysis only. (1 credit)
 
@@ -360,10 +338,7 @@ async def analyze_images(
 
 
 @router.post("/analyze/visual", response_model=AnalyzeResponse)
-async def analyze_visual(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_visual(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run visual SEO analysis only (requires Playwright). (1 credit)
 
@@ -375,10 +350,7 @@ async def analyze_visual(
 
 
 @router.post("/analyze/performance", response_model=AnalyzeResponse)
-async def analyze_performance(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_performance(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run performance/Core Web Vitals analysis only (requires Playwright). (1 credit)
 
@@ -390,10 +362,7 @@ async def analyze_performance(
 
 
 @router.post("/analyze/page", response_model=AnalyzeResponse)
-async def analyze_page(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_page(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Deep single-page SEO analysis (comprehensive, all-in-one). (8 credits)
 
@@ -413,10 +382,7 @@ async def analyze_page(
 
 
 @router.post("/analyze/plan", response_model=AnalyzeResponse)
-async def analyze_plan(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_plan(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run strategic SEO planning analysis. (1 credit)
 
@@ -434,10 +400,7 @@ async def analyze_plan(
 
 
 @router.post("/analyze/programmatic", response_model=AnalyzeResponse)
-async def analyze_programmatic(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_programmatic(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Run programmatic SEO analysis and planning. (1 credit)
 
@@ -452,10 +415,7 @@ async def analyze_programmatic(
 
 
 @router.post("/analyze/competitor-pages", response_model=AnalyzeResponse)
-async def analyze_competitor_pages(
-    request: AnalyzeRequest,
-    user: dict = Depends(get_current_user)
-):
+async def analyze_competitor_pages(request: AnalyzeRequest, user: dict = Depends(get_current_user)):
     """
     Analyze competitor comparison pages for SEO, GEO, and AEO. (1 credit)
 

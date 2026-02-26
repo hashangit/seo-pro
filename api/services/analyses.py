@@ -4,18 +4,16 @@ Analysis Service
 Handles individual and batch analysis execution via worker proxy.
 """
 
-from typing import Optional
 
 import httpx
 from fastapi import HTTPException
 
-from config import get_settings
-from api.services.supabase import get_supabase_client
 from api.services.credits import (
     calculate_individual_report_credits,
     calculate_page_audit_credits,
 )
-
+from api.services.supabase import get_supabase_client
+from config import get_settings
 
 # Analysis type to endpoint mapping for individual reports
 INDIVIDUAL_ANALYSIS_TYPES = [
@@ -34,7 +32,7 @@ INDIVIDUAL_ANALYSIS_TYPES = [
 ]
 
 
-def get_worker_url(analysis_type: str = "http") -> Optional[str]:
+def get_worker_url(analysis_type: str = "http") -> str | None:
     """Get the SDK Worker URL (unified worker for all analysis types)."""
     settings = get_settings()
     if settings.SDK_WORKER_URL:
@@ -54,16 +52,18 @@ async def proxy_to_worker(worker_url: str, endpoint: str, url: str) -> dict:
             response.raise_for_status()
             return response.json()
         except httpx.HTTPStatusError as e:
-            return {"error": f"Worker error: {e.response.status_code}", "category": endpoint.replace("/analyze/", "")}
+            return {
+                "error": f"Worker error: {e.response.status_code}",
+                "category": endpoint.replace("/analyze/", ""),
+            }
         except httpx.RequestError as e:
-            return {"error": f"Worker unavailable: {str(e)}", "category": endpoint.replace("/analyze/", "")}
+            return {
+                "error": f"Worker unavailable: {str(e)}",
+                "category": endpoint.replace("/analyze/", ""),
+            }
 
 
-async def run_individual_analysis(
-    url: str,
-    analysis_type: str,
-    user: dict
-) -> dict:
+async def run_individual_analysis(url: str, analysis_type: str, user: dict) -> dict:
     """
     Run an individual analysis with credit deduction.
 
@@ -85,7 +85,7 @@ async def run_individual_analysis(
         credits=credits_to_deduct,
         analysis_type=analysis_type,
         url=url,
-        supabase=supabase
+        supabase=supabase,
     )
 
     # Run analysis with refund on failure (P0 FIX)
@@ -96,13 +96,18 @@ async def run_individual_analysis(
         if "error" in result:
             # Refund credits on worker failure
             try:
-                supabase.rpc("refund_credits", {
-                    "p_user_id": user["id"],
-                    "p_amount": credits_to_deduct,
-                    "p_reference_type": "individual_analysis_refund",
-                    "p_description": f"Analysis failed: {result['error']}"
-                }).execute()
-                print(f"Refunded {credits_to_deduct} credits to user {user['id']} due to analysis failure")
+                supabase.rpc(
+                    "refund_credits",
+                    {
+                        "p_user_id": user["id"],
+                        "p_amount": credits_to_deduct,
+                        "p_reference_type": "individual_analysis_refund",
+                        "p_description": f"Analysis failed: {result['error']}",
+                    },
+                ).execute()
+                print(
+                    f"Refunded {credits_to_deduct} credits to user {user['id']} due to analysis failure"
+                )
             except Exception as refund_error:
                 print(f"CRITICAL: Failed to refund credits after analysis failure: {refund_error}")
 
@@ -114,26 +119,26 @@ async def run_individual_analysis(
     except Exception as e:
         # Refund credits on unexpected failure
         try:
-            supabase.rpc("refund_credits", {
-                "p_user_id": user["id"],
-                "p_amount": credits_to_deduct,
-                "p_reference_type": "individual_analysis_refund",
-                "p_description": f"Analysis exception: {str(e)}"
-            }).execute()
+            supabase.rpc(
+                "refund_credits",
+                {
+                    "p_user_id": user["id"],
+                    "p_amount": credits_to_deduct,
+                    "p_reference_type": "individual_analysis_refund",
+                    "p_description": f"Analysis exception: {str(e)}",
+                },
+            ).execute()
             print(f"Refunded {credits_to_deduct} credits to user {user['id']} due to exception")
         except Exception as refund_error:
             print(f"CRITICAL: Failed to refund credits after exception: {refund_error}")
 
         raise HTTPException(
             status_code=503,
-            detail=f"Analysis failed. Your credits have been refunded. Error: {str(e)}"
+            detail=f"Analysis failed. Your credits have been refunded. Error: {str(e)}",
         )
 
 
-async def run_page_audit_analysis(
-    url: str,
-    user: dict
-) -> dict:
+async def run_page_audit_analysis(url: str, user: dict) -> dict:
     """
     Run a full page audit with credit deduction.
 
@@ -153,7 +158,7 @@ async def run_page_audit_analysis(
         credits=calculate_page_audit_credits(),
         analysis_type="page_audit",
         url=url,
-        supabase=supabase
+        supabase=supabase,
     )
 
     # Run analysis
@@ -162,11 +167,7 @@ async def run_page_audit_analysis(
 
 
 async def deduct_analysis_credits_for_service(
-    user_id: str,
-    credits: int,
-    analysis_type: str,
-    url: str,
-    supabase
+    user_id: str, credits: int, analysis_type: str, url: str, supabase
 ) -> bool:
     """
     Deduct credits for analysis. Returns True if successful.
@@ -174,4 +175,5 @@ async def deduct_analysis_credits_for_service(
     DEV MODE: Skips deduction entirely.
     """
     from api.services.credits import deduct_analysis_credits
+
     return await deduct_analysis_credits(user_id, credits, analysis_type, url, supabase)

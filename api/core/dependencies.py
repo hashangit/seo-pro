@@ -6,25 +6,21 @@ Reusable dependencies for authentication and authorization.
 
 import os
 
-from fastapi import HTTPException, Request, status, Depends
+from fastapi import HTTPException, Request, status
 
+from api.services.auth import sync_user_to_supabase, verify_token
 from api.services.supabase import get_supabase_client
-from api.services.auth import verify_token, sync_user_to_supabase
 
 
 async def get_current_user(request: Request) -> dict:
     """Get current authenticated user from JWT token."""
     authorization = request.headers.get("Authorization")
     if not authorization:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Not authenticated"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     if not authorization.startswith("Bearer "):
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authorization header format"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authorization header format"
         )
 
     token = authorization.replace("Bearer ", "")

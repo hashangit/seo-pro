@@ -4,17 +4,14 @@ No Playwright, no heavy processing. Used for cost estimation.
 """
 
 import asyncio
-import base64
 import re
-from typing import Optional
 from urllib.parse import urljoin, urlparse
 
 import httpx
 from bs4 import BeautifulSoup
 
 # Security: Import URL validator to prevent SSRF attacks
-from api.utils.url_validator import validate_url_safe, normalize_url
-
+from api.utils.url_validator import normalize_url, validate_url_safe
 
 # Maximum content size to prevent DoS (10MB)
 MAX_CONTENT_SIZE = 10 * 1024 * 1024
@@ -35,7 +32,7 @@ class SiteScanner:
 
     def __init__(self, timeout: float = 10.0):
         self.timeout = timeout
-        self._client: Optional[httpx.AsyncClient] = None
+        self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
         """Get or create HTTP client."""
@@ -43,9 +40,7 @@ class SiteScanner:
             self._client = httpx.AsyncClient(
                 timeout=self.timeout,
                 follow_redirects=True,
-                headers={
-                    "User-Agent": "SEO Pro/1.0 (+https://seopro.example.com/bot)"
-                }
+                headers={"User-Agent": "SEO Pro/1.0 (+https://seopro.example.com/bot)"},
             )
         return self._client
 
@@ -74,7 +69,7 @@ class SiteScanner:
                     "page_count": 1,
                     "confidence": 0.0,
                     "source": "default",
-                    "error": f"URL validation failed: {error_msg}"
+                    "error": f"URL validation failed: {error_msg}",
                 }
 
             # Normalize URL
@@ -95,7 +90,7 @@ class SiteScanner:
             # Conservative default estimate on any error
             return {"page_count": 1, "confidence": 0.5, "source": "default", "error": str(e)}
 
-    async def _find_sitemap(self, url: str) -> Optional[str]:
+    async def _find_sitemap(self, url: str) -> str | None:
         """Find sitemap URL from robots.txt or common locations."""
         parsed = urlparse(url)
         robots_url = f"{parsed.scheme}://{parsed.netloc}/robots.txt"
@@ -147,7 +142,7 @@ class SiteScanner:
                     "page_count": MAX_SITEMAP_URLS,
                     "confidence": 0.8,
                     "source": "sitemap",
-                    "warning": "Sitemap too large, using maximum estimate"
+                    "warning": "Sitemap too large, using maximum estimate",
                 }
 
             response = await client.get(sitemap_url)
@@ -159,7 +154,7 @@ class SiteScanner:
                     "page_count": MAX_SITEMAP_URLS,
                     "confidence": 0.8,
                     "source": "sitemap",
-                    "warning": "Sitemap response too large, using maximum estimate"
+                    "warning": "Sitemap response too large, using maximum estimate",
                 }
 
             # Check if it's a sitemap index
@@ -170,11 +165,7 @@ class SiteScanner:
             urls = self._extract_urls_from_xml(response.text)
             # Security: Cap at maximum
             url_count = min(len(urls), MAX_SITEMAP_URLS)
-            return {
-                "page_count": url_count,
-                "confidence": 1.0,
-                "source": "sitemap"
-            }
+            return {"page_count": url_count, "confidence": 1.0, "source": "sitemap"}
 
         except Exception as e:
             return {"page_count": 1, "confidence": 0.5, "source": "sitemap", "error": str(e)}
@@ -205,11 +196,7 @@ class SiteScanner:
 
         # Security: Cap at maximum
         url_count = min(len(all_urls), MAX_SITEMAP_URLS)
-        return {
-            "page_count": url_count,
-            "confidence": 1.0,
-            "source": "sitemap"
-        }
+        return {"page_count": url_count, "confidence": 1.0, "source": "sitemap"}
 
     async def _fetch_sitemap_urls(self, sitemap_url: str) -> list:
         """Fetch and extract URLs from a single sitemap."""
@@ -234,9 +221,7 @@ class SiteScanner:
 
         # URL elements can be <url><loc> or <loc> directly
         for loc in soup.find_all("loc"):
-            if loc.parent and loc.parent.name == "url":
-                urls.append(loc.text)
-            elif loc.parent.name not in ["sitemap", "sitemapindex"]:
+            if loc.parent and loc.parent.name == "url" or loc.parent.name not in ["sitemap", "sitemapindex"]:
                 urls.append(loc.text)
 
         return urls
@@ -288,7 +273,7 @@ class SiteScanner:
                 "page_count": estimated,
                 "confidence": 0.6,
                 "source": "homepage",
-                "internal_links_found": link_count
+                "internal_links_found": link_count,
             }
 
         except Exception as e:
@@ -327,7 +312,7 @@ class SiteScanner:
 
         return False
 
-    async def discover_urls(self, url: str, sitemap_url: Optional[str] = None) -> dict:
+    async def discover_urls(self, url: str, sitemap_url: str | None = None) -> dict:
         """
         Discover all URLs for a site.
 
@@ -355,7 +340,7 @@ class SiteScanner:
                     "confidence": 0.0,
                     "sitemap_found": False,
                     "sitemap_url": None,
-                    "error": f"URL validation failed: {error_msg}"
+                    "error": f"URL validation failed: {error_msg}",
                 }
 
             # Normalize URL
@@ -372,7 +357,7 @@ class SiteScanner:
                         "confidence": 0.0,
                         "sitemap_found": False,
                         "sitemap_url": None,
-                        "error": f"Invalid sitemap URL: {sitemap_error}"
+                        "error": f"Invalid sitemap URL: {sitemap_error}",
                     }
 
                 urls = await self._get_urls_from_sitemap(sitemap_url)
@@ -382,7 +367,7 @@ class SiteScanner:
                         "source": "manual_sitemap",
                         "confidence": 1.0,
                         "sitemap_found": True,
-                        "sitemap_url": sitemap_url
+                        "sitemap_url": sitemap_url,
                     }
                 else:
                     return {
@@ -391,7 +376,7 @@ class SiteScanner:
                         "confidence": 0.0,
                         "sitemap_found": True,
                         "sitemap_url": sitemap_url,
-                        "error": "Could not extract URLs from provided sitemap"
+                        "error": "Could not extract URLs from provided sitemap",
                     }
 
             # Try auto-discovery from robots.txt or common locations
@@ -404,7 +389,7 @@ class SiteScanner:
                         "source": "sitemap",
                         "confidence": 1.0,
                         "sitemap_found": True,
-                        "sitemap_url": auto_sitemap_url
+                        "sitemap_url": auto_sitemap_url,
                     }
 
             # Fallback: get URLs from homepage
@@ -416,7 +401,7 @@ class SiteScanner:
                 "sitemap_found": False,
                 "sitemap_url": None,
                 "warning": "No sitemap found. Discovered URLs from homepage links. "
-                           "Consider providing a sitemap URL manually for more accurate results."
+                "Consider providing a sitemap URL manually for more accurate results.",
             }
 
         except Exception as e:
@@ -426,7 +411,7 @@ class SiteScanner:
                 "confidence": 0.0,
                 "sitemap_found": False,
                 "sitemap_url": None,
-                "error": str(e)
+                "error": str(e),
             }
 
     async def _get_urls_from_sitemap(self, sitemap_url: str) -> list:
@@ -463,7 +448,9 @@ class SiteScanner:
         soup = BeautifulSoup(index_text, "xml")
 
         # Find all sitemap locations
-        sitemap_locs = [loc.text for loc in soup.find_all("loc") if "sitemap" in loc.parent.name.lower()]
+        sitemap_locs = [
+            loc.text for loc in soup.find_all("loc") if "sitemap" in loc.parent.name.lower()
+        ]
 
         if not sitemap_locs:
             return []
@@ -523,7 +510,7 @@ class SiteScanner:
             return []
 
 
-async def discover_site_urls(url: str, sitemap_url: Optional[str] = None) -> dict:
+async def discover_site_urls(url: str, sitemap_url: str | None = None) -> dict:
     """
     Convenience function to discover URLs for a site.
 

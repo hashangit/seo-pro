@@ -6,18 +6,17 @@ Handles JWKS caching, token verification, and user synchronization.
 
 import asyncio
 from datetime import datetime, timedelta
-from typing import Optional
 
 import httpx
-from fastapi import HTTPException, Request, status
+from fastapi import HTTPException, status
 from jose import jwt
-from jose.exceptions import JWTError, ExpiredSignatureError
+from jose.exceptions import ExpiredSignatureError, JWTError
 
 from config import get_settings
 
 # Global state with thread-safe locking
-_jwks_cache: Optional[dict] = None
-_jwks_cache_time: Optional[datetime] = None
+_jwks_cache: dict | None = None
+_jwks_cache_time: datetime | None = None
 _JWKS_CACHE_TTL = timedelta(minutes=15)
 _jwks_lock = asyncio.Lock()
 
@@ -84,14 +83,14 @@ async def verify_token(token: str) -> dict:
                     "kid": key["kid"],
                     "use": key["use"],
                     "n": key["n"],
-                    "e": key["e"]
+                    "e": key["e"],
                 }
                 break
 
         if rsa_key is None:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
-                detail="Unable to find a valid signing key"
+                detail="Unable to find a valid signing key",
             )
 
         payload = jwt.decode(
@@ -99,22 +98,18 @@ async def verify_token(token: str) -> dict:
             rsa_key,
             algorithms=["RS256"],
             audience=settings.WORKOS_AUDIENCE,
-            issuer=settings.WORKOS_ISSUER
+            issuer=settings.WORKOS_ISSUER,
         )
 
         return payload
 
     except ExpiredSignatureError:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token has expired"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
     except JWTError as e:
         # Log detailed error server-side, return generic message to client
         print(f"JWT validation error: {str(e)}")  # Server-side logging only
         raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid authentication token"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token"
         )
 
 
@@ -127,9 +122,9 @@ async def sync_user_to_supabase(workos_user: dict, supabase) -> dict:
 
     if result.data:
         # Update last_sync
-        supabase.table("users").update({
-            "last_sync": datetime.utcnow().isoformat()
-        }).eq("id", user_id).execute()
+        supabase.table("users").update({"last_sync": datetime.utcnow().isoformat()}).eq(
+            "id", user_id
+        ).execute()
         return result.data[0]
 
     # Create new user with UPSERT to handle race conditions
@@ -140,7 +135,7 @@ async def sync_user_to_supabase(workos_user: dict, supabase) -> dict:
         "last_name": workos_user.get("family_name"),
         "credits_balance": 0,
         "plan_tier": "free",
-        "last_sync": datetime.utcnow().isoformat()
+        "last_sync": datetime.utcnow().isoformat(),
     }
 
     # Sync organization if present
@@ -150,10 +145,9 @@ async def sync_user_to_supabase(workos_user: dict, supabase) -> dict:
         org_result = supabase.table("organizations").select("*").eq("id", org_id).execute()
         if not org_result.data:
             # Create organization
-            supabase.table("organizations").insert({
-                "id": org_id,
-                "name": workos_user.get("org_name", "Unknown Organization")
-            }).execute()
+            supabase.table("organizations").insert(
+                {"id": org_id, "name": workos_user.get("org_name", "Unknown Organization")}
+            ).execute()
         new_user["organization_id"] = org_id
 
     # Use upsert via RPC to handle race conditions

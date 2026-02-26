@@ -5,40 +5,35 @@ Handles audit estimation, execution, and orchestration.
 """
 
 from datetime import datetime, timedelta
-from typing import Optional
 
 from fastapi import HTTPException
 
-from config import get_settings
-from api.services.supabase import get_supabase_client
-from api.services.credits import (
-    calculate_credits,
-    calculate_site_audit_credits,
-    format_cost_breakdown,
-    CREDITS_PER_DOLLAR,
-)
 from api.services.cloud_tasks import submit_audit_to_orchestrator
+from api.services.supabase import get_supabase_client
+from config import get_settings
 
 
 async def create_pending_quote(
-    user_id: str,
-    url: str,
-    page_count: int,
-    credits_required: int,
-    metadata: Optional[dict] = None
+    user_id: str, url: str, page_count: int, credits_required: int, metadata: dict | None = None
 ) -> str:
     """Create a pending audit quote with 30 min expiry."""
     supabase = get_supabase_client()
 
-    quote_result = supabase.table("pending_audits").insert({
-        "user_id": user_id,
-        "url": url,
-        "page_count": page_count,
-        "credits_required": credits_required,
-        "status": "pending",
-        "metadata": metadata or {},
-        "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat()
-    }).execute()
+    quote_result = (
+        supabase.table("pending_audits")
+        .insert(
+            {
+                "user_id": user_id,
+                "url": url,
+                "page_count": page_count,
+                "credits_required": credits_required,
+                "status": "pending",
+                "metadata": metadata or {},
+                "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat(),
+            }
+        )
+        .execute()
+    )
 
     return quote_result.data[0]["id"] if quote_result.data else None
 
@@ -69,9 +64,13 @@ async def validate_and_claim_quote(quote_id: str, user_id: str) -> dict:
         raise HTTPException(status_code=400, detail="Quote expired. Please request a new estimate.")
 
     # Atomically claim the quote
-    update_result = supabase.table("pending_audits").update(
-        {"status": "processing"}
-    ).eq("id", quote_id).eq("status", "pending").execute()
+    update_result = (
+        supabase.table("pending_audits")
+        .update({"status": "processing"})
+        .eq("id", quote_id)
+        .eq("status", "pending")
+        .execute()
+    )
 
     if not update_result.data:
         raise HTTPException(status_code=400, detail="Quote already used or expired")
@@ -79,7 +78,9 @@ async def validate_and_claim_quote(quote_id: str, user_id: str) -> dict:
     return quote
 
 
-async def deduct_credits_atomic(user_id: str, amount: int, quote_id: str, url: str, page_count: int) -> bool:
+async def deduct_credits_atomic(
+    user_id: str, amount: int, quote_id: str, url: str, page_count: int
+) -> bool:
     """
     Deduct credits atomically using RPC function.
 
@@ -88,25 +89,26 @@ async def deduct_credits_atomic(user_id: str, amount: int, quote_id: str, url: s
     supabase = get_supabase_client()
 
     try:
-        deduct_result = supabase.rpc("deduct_credits", {
-            "p_user_id": user_id,
-            "p_amount": amount,
-            "p_reference_id": quote_id,
-            "p_reference_type": "audit",
-            "p_description": f"Site audit: {url} ({page_count} pages)"
-        }).execute()
+        deduct_result = supabase.rpc(
+            "deduct_credits",
+            {
+                "p_user_id": user_id,
+                "p_amount": amount,
+                "p_reference_id": quote_id,
+                "p_reference_type": "audit",
+                "p_description": f"Site audit: {url} ({page_count} pages)",
+            },
+        ).execute()
 
         if not deduct_result.data:
             raise HTTPException(
-                status_code=402,
-                detail=f"Insufficient credits. Need {amount}, please top up."
+                status_code=402, detail=f"Insufficient credits. Need {amount}, please top up."
             )
         return True
     except Exception as e:
         if "Insufficient credits" in str(e):
             raise HTTPException(
-                status_code=402,
-                detail=f"Insufficient credits. Need {amount}, please top up."
+                status_code=402, detail=f"Insufficient credits. Need {amount}, please top up."
             )
         raise
 
@@ -116,13 +118,16 @@ async def refund_credits(user_id: str, amount: int, reference_id: str, reason: s
     supabase = get_supabase_client()
 
     try:
-        supabase.rpc("refund_credits", {
-            "p_user_id": user_id,
-            "p_amount": amount,
-            "p_reference_id": reference_id,
-            "p_reference_type": "audit_refund",
-            "p_description": reason
-        }).execute()
+        supabase.rpc(
+            "refund_credits",
+            {
+                "p_user_id": user_id,
+                "p_amount": amount,
+                "p_reference_id": reference_id,
+                "p_reference_type": "audit_refund",
+                "p_description": reason,
+            },
+        ).execute()
         print(f"Refunded {amount} credits to user {user_id}")
         return True
     except Exception as refund_error:
@@ -130,27 +135,28 @@ async def refund_credits(user_id: str, amount: int, reference_id: str, reason: s
         return False
 
 
-async def create_audit_record(
-    user_id: str,
-    url: str,
-    page_count: int,
-    credits_used: int
-) -> str:
+async def create_audit_record(user_id: str, url: str, page_count: int, credits_used: int) -> str:
     """Create an audit record and return the audit_id."""
     supabase = get_supabase_client()
 
-    audit_result = supabase.table("audits").insert({
-        "user_id": user_id,
-        "url": url,
-        "status": "queued",
-        "page_count": page_count,
-        "credits_used": credits_used
-    }).execute()
+    audit_result = (
+        supabase.table("audits")
+        .insert(
+            {
+                "user_id": user_id,
+                "url": url,
+                "status": "queued",
+                "page_count": page_count,
+                "credits_used": credits_used,
+            }
+        )
+        .execute()
+    )
 
     return audit_result.data[0]["id"] if audit_result.data else None
 
 
-async def update_audit_status(audit_id: str, status: str, error_message: Optional[str] = None):
+async def update_audit_status(audit_id: str, status: str, error_message: str | None = None):
     """Update audit status."""
     supabase = get_supabase_client()
 
@@ -162,9 +168,7 @@ async def update_audit_status(audit_id: str, status: str, error_message: Optiona
 
 
 async def run_audit_with_quote(
-    quote_id: str,
-    user_id: str,
-    selected_urls: Optional[list[str]] = None
+    quote_id: str, user_id: str, selected_urls: list[str] | None = None
 ) -> dict:
     """
     Execute audit from a validated quote.
@@ -194,9 +198,9 @@ async def run_audit_with_quote(
             amount=quote["credits_required"],
             quote_id=quote_id,
             url=quote["url"],
-            page_count=quote["page_count"]
+            page_count=quote["page_count"],
         )
-    except Exception as e:
+    except Exception:
         # Rollback quote status on credit deduction failure
         supabase.table("pending_audits").update({"status": "pending"}).eq("id", quote_id).execute()
         raise
@@ -215,7 +219,7 @@ async def run_audit_with_quote(
         user_id=user_id,
         url=quote["url"],
         page_count=page_count,
-        credits_used=quote["credits_required"]
+        credits_used=quote["credits_required"],
     )
 
     # Submit to Cloud Tasks for processing
@@ -225,7 +229,7 @@ async def run_audit_with_quote(
             url=quote["url"],
             page_count=page_count,
             user_id=user_id,
-            page_urls=page_urls
+            page_urls=page_urls,
         )
     except Exception as e:
         # CRITICAL: Refund credits when task submission fails
@@ -236,14 +240,14 @@ async def run_audit_with_quote(
             user_id=user_id,
             amount=quote["credits_required"],
             reference_id=audit_id,
-            reason=f"Task submission failed: {str(e)}"
+            reason=f"Task submission failed: {str(e)}",
         )
 
         # Update audit status to failed
         await update_audit_status(
             audit_id=audit_id,
             status="failed",
-            error_message="Failed to submit analysis to worker queue. Credits refunded."
+            error_message="Failed to submit analysis to worker queue. Credits refunded.",
         )
 
         # Update quote status
@@ -251,16 +255,14 @@ async def run_audit_with_quote(
 
         raise HTTPException(
             status_code=503,
-            detail="Unable to queue analysis. Your credits have been refunded. Please try again."
+            detail="Unable to queue analysis. Your credits have been refunded. Please try again.",
         )
 
     return {"audit_id": audit_id, "status": "processing"}
 
 
 async def _run_audit_dev_mode(
-    quote_id: str,
-    user_id: str,
-    selected_urls: Optional[list[str]] = None
+    quote_id: str, user_id: str, selected_urls: list[str] | None = None
 ) -> dict:
     """Run audit in dev mode (no credit checks)."""
     supabase = get_supabase_client()
@@ -284,7 +286,7 @@ async def _run_audit_dev_mode(
         user_id=user_id,
         url=quote["url"],
         page_count=page_count,
-        credits_used=0  # Free in dev mode
+        credits_used=0,  # Free in dev mode
     )
 
     # Submit to Cloud Tasks for processing
@@ -294,7 +296,7 @@ async def _run_audit_dev_mode(
             url=quote["url"],
             page_count=page_count,
             user_id=user_id,
-            page_urls=page_urls
+            page_urls=page_urls,
         )
     except Exception as e:
         print(f"Warning: Failed to submit tasks: {e}")

@@ -8,11 +8,9 @@ import asyncio
 import json
 import logging
 import os
-from typing import Dict, Optional, Callable
 from functools import wraps
 
-from fastapi import Request, HTTPException, status
-from fastapi.responses import JSONResponse
+from fastapi import HTTPException, Request
 
 # Configure logging
 logger = logging.getLogger(__name__)
@@ -37,19 +35,17 @@ REDIS_URL = os.getenv("REDIS_URL")
 # In-Memory Rate Limiter (fallback when Redis unavailable)
 # ============================================================================
 
+
 class InMemoryRateLimiter:
     """Thread-safe in-memory rate limiter for development/testing."""
 
     def __init__(self):
-        self._requests: Dict[str, list[float]] = {}
+        self._requests: dict[str, list[float]] = {}
         self._lock = asyncio.Lock()
 
     async def is_allowed(
-        self,
-        key: str,
-        limit: int,
-        window: int = 60
-    ) -> tuple[bool, Dict[str, int]]:
+        self, key: str, limit: int, window: int = 60
+    ) -> tuple[bool, dict[str, int]]:
         """
         Check if request is allowed under rate limit.
 
@@ -66,18 +62,13 @@ class InMemoryRateLimiter:
             # Remove expired entries outside window
             window_start = now - window
             self._requests[key] = [
-                timestamp for timestamp in self._requests[key]
-                if timestamp > window_start
+                timestamp for timestamp in self._requests[key] if timestamp > window_start
             ]
 
             # Check if under limit
             current_count = len(self._requests[key])
             if current_count >= limit:
-                return False, {
-                    "limit": limit,
-                    "remaining": 0,
-                    "reset": int(window_start + window)
-                }
+                return False, {"limit": limit, "remaining": 0, "reset": int(window_start + window)}
 
             # Add current request
             self._requests[key].append(now)
@@ -85,13 +76,14 @@ class InMemoryRateLimiter:
             return True, {
                 "limit": limit,
                 "remaining": limit - current_count - 1,
-                "reset": int(now + window)
+                "reset": int(now + window),
             }
 
 
 # ============================================================================
 # Rate Limiter Class
 # ============================================================================
+
 
 class RateLimiter:
     """
@@ -103,15 +95,15 @@ class RateLimiter:
     def __init__(
         self,
         default_limit: str = "100 per minute",
-        redis_url: Optional[str] = None,
-        storage_url: Optional[str] = None,
+        redis_url: str | None = None,
+        storage_url: str | None = None,
         burst_requests: int = 10,
         burst_period: int = 60,
         skip_successful: bool = False,
         skip_failed: bool = False,
         key_prefix: str = "rate_limit",
-        headers: Optional[Dict[str, str]] = None,
-        description: Optional[str] = None,
+        headers: dict[str, str] | None = None,
+        description: str | None = None,
         block: bool = False,
     ):
         """
@@ -150,10 +142,9 @@ class RateLimiter:
         """Initialize Redis connection."""
         try:
             import redis.asyncio as aioredis
+
             self._redis_client = aioredis.from_url(
-                self.redis_url,
-                encoding="utf-8",
-                decode_responses=True
+                self.redis_url, encoding="utf-8", decode_responses=True
             )
         except ImportError:
             self._redis_client = None
@@ -166,22 +157,16 @@ class RateLimiter:
         """Check if request should be blocked."""
         # Check maintenance mode first
         if self.block:
-            raise HTTPException(
-                status_code=503,
-                detail="Service temporarily unavailable"
-            )
+            raise HTTPException(status_code=503, detail="Service temporarily unavailable")
 
         # Check user-specific blocks if configured
         user_blocks = await self._get_user_blocks(request)
         if user_blocks and request.headers.get("X-User-Block") in user_blocks:
-            raise HTTPException(
-                status_code=403,
-                detail="You have exceeded your rate limit"
-            )
+            raise HTTPException(status_code=403, detail="You have exceeded your rate limit")
 
         return False
 
-    async def _get_user_blocks(self, request: Request) -> Optional[list[str]]:
+    async def _get_user_blocks(self, request: Request) -> list[str] | None:
         """Get user-specific rate limit blocks from Redis or use defaults."""
         if self._redis_client:
             try:
@@ -199,14 +184,14 @@ class RateLimiter:
             # Default blocks for new users (in-memory mode)
             return []
 
-    async def _get_user_id(self, request: Request) -> Optional[str]:
+    async def _get_user_id(self, request: Request) -> str | None:
         """Extract user ID from request for rate limiting."""
         auth_header = request.headers.get("Authorization")
         if not auth_header:
             return None
 
         # Try to get user_id from request.state (set by auth middleware)
-        if hasattr(request, 'state') and hasattr(request.state, 'user_id'):
+        if hasattr(request, "state") and hasattr(request.state, "user_id"):
             return request.state.user_id
 
         # Fallback: Extract from JWT without full verification (for rate limiting only)
@@ -216,6 +201,7 @@ class RateLimiter:
                 token = auth_header.replace("Bearer ", "")
                 # Decode without verification just to get the subject
                 from jose import jwt
+
                 unverified = jwt.get_unverified_claims(token)
                 return unverified.get("sub")
         except Exception:
@@ -224,10 +210,7 @@ class RateLimiter:
         return None
 
     async def check_and_increment(
-        self,
-        identifier: str,
-        request: Request,
-        increment_by: int = 1
+        self, identifier: str, request: Request, increment_by: int = 1
     ) -> bool:
         """
         Check and increment rate limit for a request.
@@ -257,7 +240,7 @@ class RateLimiter:
 
         return allowed
 
-    async def _check_redis(self, key: str, limit: int) -> tuple[bool, Dict[str, int]]:
+    async def _check_redis(self, key: str, limit: int) -> tuple[bool, dict[str, int]]:
         """Check rate limit using Redis with atomic operations."""
         try:
             # Use SET with NX and EX for atomic increment-or-create with expiry
@@ -275,11 +258,7 @@ class RateLimiter:
                 # Note: incr preserves the existing TTL
 
             allowed = current <= limit
-            return allowed, {
-                "limit": limit,
-                "remaining": max(0, limit - current),
-                "reset": 60
-            }
+            return allowed, {"limit": limit, "remaining": max(0, limit - current), "reset": 60}
         except Exception as e:
             # Log Redis failure - this is a security concern in production
             logger.warning(
@@ -289,7 +268,7 @@ class RateLimiter:
             # Fallback to memory on Redis error
             return await self._memory.is_allowed(key, limit, 60)
 
-    async def _check_memory(self, key: str, limit: int) -> tuple[bool, Dict[str, int]]:
+    async def _check_memory(self, key: str, limit: int) -> tuple[bool, dict[str, int]]:
         """Check rate limit using in-memory storage."""
         return await self._memory.is_allowed(key, limit, 60)
 
@@ -303,9 +282,7 @@ class RateLimiter:
             cursor = "0"
             while cursor != 0:
                 cursor, keys = await self._redis_client.scan(
-                    cursor=cursor,
-                    match=f"{self.key_prefix}:*",
-                    count=100
+                    cursor=cursor, match=f"{self.key_prefix}:*", count=100
                 )
                 if keys:
                     # Check TTL and delete expired
@@ -316,7 +293,7 @@ class RateLimiter:
         except Exception:
             pass
 
-    def get_rate_limit_headers(self, remaining: int) -> Dict[str, str]:
+    def get_rate_limit_headers(self, remaining: int) -> dict[str, str]:
         """Get rate limit headers for response."""
         headers = {}
         if remaining > 0:
@@ -326,15 +303,10 @@ class RateLimiter:
         return headers
 
     @staticmethod
-    def _get_rate_limit_config(endpoint: str) -> Dict[str, str]:
+    def _get_rate_limit_config(endpoint: str) -> dict[str, str]:
         """Get rate limit configuration for an endpoint."""
         config = RATE_LIMITS.get(endpoint, RATE_LIMITS["default"])
-        return {
-            "limit": config,
-            "remaining": config,
-            "reset": config,
-            "burst": config
-        }
+        return {"limit": config, "remaining": config, "reset": config, "burst": config}
 
 
 # ============================================================================
@@ -352,6 +324,7 @@ _rate_limiter = RateLimiter(
 # Helper Functions
 # ============================================================================
 
+
 def get_rate_limit_strategy(endpoint: str) -> str:
     """Determine rate limiting strategy for endpoint."""
     if endpoint in RATE_LIMITS:
@@ -368,11 +341,12 @@ def create_rate_limiter(endpoint: str, strategy: str = "default") -> RateLimiter
 # Decorator
 # ============================================================================
 
+
 def rate_limit(
     endpoint: str = "default",
     strategy: str = "default",
-    limit: Optional[int] = None,
-    burst: Optional[int] = None
+    limit: int | None = None,
+    burst: int | None = None,
 ):
     """
     Decorator to apply rate limiting to an endpoint.
@@ -383,6 +357,7 @@ def rate_limit(
         async def estimate_audit(...):
             ...
     """
+
     def decorator(func):
         @wraps(func)
         async def wrapper(*args, **kwargs):
@@ -397,7 +372,7 @@ def rate_limit(
             limiter = create_rate_limiter(endpoint, strategy)
 
             # Check if allowed
-            user_id = getattr(request.state, 'user_id', None) if hasattr(request, 'state') else None
+            user_id = getattr(request.state, "user_id", None) if hasattr(request, "state") else None
             identifier = f"{endpoint}:{user_id}" if user_id else endpoint
 
             allowed = await limiter.check_and_increment(identifier, request)
@@ -410,7 +385,7 @@ def rate_limit(
                         "Retry-After": "60",
                         "X-RateLimit-Limit": "100",
                         "X-RateLimit-Remaining": "0",
-                    }
+                    },
                 )
 
             return await func(*args, **kwargs)
