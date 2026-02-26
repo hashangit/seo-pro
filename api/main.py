@@ -18,7 +18,7 @@ from api.services.auth import get_jwks
 from api.services.supabase import get_supabase_client, reset_supabase_client
 
 # Import centralized configuration
-from config import get_settings, validate_required_settings
+from api.config import get_settings, validate_required_settings
 
 # ============================================================================
 # Environment Variable Validation

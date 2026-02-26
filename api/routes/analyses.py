@@ -32,7 +32,7 @@ from api.services.credits import (
     format_page_audit_cost,
 )
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["Analysis"])
 settings = get_settings()

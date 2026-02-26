@@ -6,7 +6,7 @@ Security headers and other HTTP middleware.
 
 from fastapi import Request
 
-from config import get_settings
+from api.config import get_settings
 
 
 async def add_security_headers(request: Request, call_next):

@@ -13,7 +13,7 @@ from api.services.credits import (
     calculate_page_audit_credits,
 )
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 # Analysis type to endpoint mapping for individual reports
 INDIVIDUAL_ANALYSIS_TYPES = [

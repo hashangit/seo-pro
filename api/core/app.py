@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from api.core.middleware import add_security_headers
-from config import get_settings
+from api.config import get_settings
 
 
 def create_app() -> FastAPI:

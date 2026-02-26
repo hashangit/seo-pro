@@ -6,7 +6,7 @@ Handles credit calculations, deductions, and formatting.
 
 from fastapi import HTTPException
 
-from config import get_settings
+from api.config import get_settings
 
 # Credit pricing constants
 CREDITS_PER_DOLLAR = 8  # $1 = 8 credits

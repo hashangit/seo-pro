@@ -9,7 +9,7 @@ import uuid
 
 from fastapi import HTTPException
 
-from config import get_settings
+from api.config import get_settings
 
 
 async def submit_audit_to_orchestrator(

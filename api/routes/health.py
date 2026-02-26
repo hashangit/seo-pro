@@ -12,7 +12,7 @@ from api.core.dependencies import get_internal_secret
 from api.models.common import HealthResponse
 from api.services.auth import get_jwks, invalidate_jwks_cache
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 router = APIRouter(prefix="/api/v1", tags=["System"])
 settings = get_settings()

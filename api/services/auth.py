@@ -12,7 +12,7 @@ from fastapi import HTTPException, status
 from jose import jwt
 from jose.exceptions import ExpiredSignatureError, JWTError
 
-from config import get_settings
+from api.config import get_settings
 
 # Global state with thread-safe locking
 _jwks_cache: dict | None = None

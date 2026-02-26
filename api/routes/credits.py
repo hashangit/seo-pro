@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends
 from api.core.dependencies import get_current_user
 from api.models.credits import CreditBalanceResponse, CreditHistoryResponse
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 router = APIRouter(prefix="/api/v1/credits", tags=["Credits"])
 settings = get_settings()

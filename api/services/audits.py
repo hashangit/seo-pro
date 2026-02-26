@@ -10,7 +10,7 @@ from fastapi import HTTPException
 
 from api.services.cloud_tasks import submit_audit_to_orchestrator
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 
 async def create_pending_quote(

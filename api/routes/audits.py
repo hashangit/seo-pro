@@ -21,7 +21,7 @@ from api.models.audits import (
 from api.services.audits import create_pending_quote, run_audit_with_quote
 from api.services.credits import calculate_credits, format_cost_breakdown
 from api.services.supabase import get_supabase_client
-from config import get_settings
+from api.config import get_settings
 
 router = APIRouter(prefix="/api/v1/audit", tags=["Audits"])
 settings = get_settings()
