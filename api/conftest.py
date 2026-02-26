@@ -94,8 +94,7 @@ async def app_client(monkeypatch):
 
     # Override settings for testing
     monkeypatch.setattr(
-        "api.config",
-        "get_settings",
+        "api.config.get_settings",
         lambda: Settings(
             ENVIRONMENT="development",
             SUPABASE_URL="https://test.supabase.co",
@@ -104,7 +103,7 @@ async def app_client(monkeypatch):
             WORKOS_ISSUER="api.workos.com",
             HTTP_WORKER_URL="http://localhost:8001",
             BROWSER_WORKER_URL="http://localhost:8002",
-            ORCHESTRATOR_URL="http://localhost:8003",
+            SDK_WORKER_URL="http://localhost:8003",
         ),
     )
 
@@ -123,7 +122,7 @@ def settings():
         WORKOS_ISSUER="api.workos.com",
         HTTP_WORKER_URL="http://localhost:8001",
         BROWSER_WORKER_URL="http://localhost:8002",
-        ORCHESTRATOR_URL="http://localhost:8003",
+        SDK_WORKER_URL="http://localhost:8003",
     )
 
 
