@@ -107,6 +107,9 @@ jobs:
 
       - name: Build
         working-directory: ./frontend
+        env:
+          NEXT_PUBLIC_WORKOS_CLIENT_ID: test-client-id
+          NEXT_PUBLIC_WORKOS_REDIRECT_URI: http://localhost:3000
         run: pnpm build
 
   # ============================================================================
