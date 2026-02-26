@@ -2,6 +2,8 @@
 Test endpoints for critical API functionality.
 """
 
+import uuid
+
 import pytest
 
 from api.conftest import (
