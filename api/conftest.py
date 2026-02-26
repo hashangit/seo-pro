@@ -16,9 +16,6 @@ from api.config import Settings
 @pytest.fixture(autouse=True)
 def override_settings(monkeypatch):
     """Override settings for testing."""
-    original_getenv = os.getenv
-    original_getenv_returns = original_getenv.return_value
-
     def mock_getenv(key, default=None):
         if key == "SUPABASE_URL":
             return "https://test.supabase.co"
@@ -34,7 +31,7 @@ def override_settings(monkeypatch):
             return "http://localhost:8003"
         elif key == "FRONTEND_URL":
             return "http://localhost:3000"
-        return original_getenv_returns(key, default)
+        return os.environ.get(key, default)
 
     monkeypatch.setattr(os, "getenv", mock_getenv)
 
