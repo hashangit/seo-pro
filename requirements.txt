@@ -1,11 +1,43 @@
 # SEO Pro - Python Dependencies
 # Bounded version pinning with security-conscious minimums
-# Last updated: February 7, 2026
+# Last updated: February 13, 2026
 
-beautifulsoup4>=4.12.0,<5.0.0     # No known CVEs
-requests>=2.32.4,<3.0.0           # CVE-2024-47081, CVE-2024-35195 fixes
-lxml>=6.0.2,<7.0.0                # CVE-2025-24928 + additional libxml2 security patches
-playwright>=1.56.0,<2.0.0         # CVE-2025-59288 fix (macOS)
-Pillow>=12.1.0,<13.0.0            # CVE-2025-48379 fix
+# Web Framework
+fastapi>=0.115.0,<0.116.0
+uvicorn[standard]>=0.34.0,<0.35.0
+gunicorn>=23.0.0,<24.0.0
+
+# HTML Parsing & HTTP
+beautifulsoup4>=4.12.0,<5.0.0
+requests>=2.32.4,<3.0.0
+httpx>=0.27.0,<0.28.0
+lxml>=6.0.2,<7.0.0
+
+# Playwright (for browser worker)
+playwright>=1.56.0,<2.0.0
+
+# Image Processing
+Pillow>=12.1.0,<13.0.0
+
+# Auth & Security
+python-jose[cryptography]>=3.3.0,<4.0.0
+python-multipart>=0.0.9,<0.1.0
+
+# Database
+supabase>=2.10.0,<3.0.0
+
+# Google Cloud
+google-cloud-tasks>=2.18.0,<3.0.0
+
+# Pydantic
+pydantic>=2.10.0,<3.0.0
+pydantic-settings>=2.6.0,<3.0.0
+
+# Utilities
 urllib3>=2.6.3,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-2025-66418
-validators>=0.22.0,<1.0.0         # No known CVEs
+validators>=0.22.0,<1.0.0
+python-dotenv>=1.0.0,<2.0.0
+
+# Claude Agent SDK (includes anthropic)
+claude-agent-sdk>=0.1.0
+click>=8.1.0,<9.0.0

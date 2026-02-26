@@ -1,0 +1,71 @@
+[project]
+name = "seo-pro"
+version = "1.0.0"
+description = "SEO Pro SaaS Platform"
+requires-python = ">=3.11"
+dependencies = [
+    "fastapi>=0.104.0",
+    "uvicorn[standard]>=0.24.0",
+    "supabase>=2.3.0",
+    "workos>=4.0.0",
+    "google-cloud-tasks>=2.14.0",
+    "httpx>=0.25.0",
+    "beautifulsoup4>=4.12.0",
+    "playwright>=1.40.0",
+    "pydantic>=2.5.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.4.0",
+    "pytest-asyncio>=0.21.0",
+    "pytest-cov>=4.1.0",
+    "ruff>=0.1.0",
+    "mypy>=1.7.0",
+    "types-requests",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
+    "ARG", # flake8-unused-arguments
+    "SIM", # flake8-simplify
+]
+ignore = [
+    "E501",   # line too long (handled by formatter)
+    "B008",   # do not perform function calls in argument defaults
+    "B904",   # raise ... from err (exception chaining)
+    "W191",   # indentation contains tabs
+    "SIM108", # ternary operator (code style preference)
+    "I001",   # import block is un-sorted or un-formatted (allow flexible imports)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["F401"]
+"api/conftest.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
+"api/tests/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
+"api/models/*.py" = ["ARG001", "ARG002", "ARG003"]  # Pydantic validators often have unused args
+"api/services/*.py" = ["ARG001", "SIM102"]  # Service functions with interface requirements
+"api/routes/*.py" = ["ARG001"]  # Route handlers with auth dependencies
+"api/scanner/*.py" = ["ARG002", "F841", "SIM102", "SIM110"]  # Scanner with interface requirements
+"api/rate_limiter.py" = ["ARG001", "ARG002"]  # Rate limiter interface requirements
+"api/config.py" = ["ARG003"]  # Config validators
+"workers/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003"]
+"orchestrator/*.py" = ["F401", "F841", "ARG001", "ARG002", "ARG003", "ARG005"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
