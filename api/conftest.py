@@ -117,7 +117,9 @@ async def app_client(monkeypatch, test_user):
     # Override the dependency using FastAPI's mechanism
     app.dependency_overrides[get_current_user] = mock_get_current_user
 
-    async with httpx.AsyncClient(app=app, base_url="http://localhost:8080") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://localhost:8080"
+    ) as client:
         yield client
 
     # Clean up the override after the test
@@ -127,6 +129,11 @@ async def app_client(monkeypatch, test_user):
 @pytest.fixture
 def settings():
     """Create test settings."""
+    return get_test_settings()
+
+
+def get_test_settings():
+    """Get test settings - can be called directly without fixture."""
     return Settings(
         ENVIRONMENT="development",
         SUPABASE_URL="https://test.supabase.co",
