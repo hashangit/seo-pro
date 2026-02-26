@@ -34,9 +34,11 @@ COPY scripts/ scripts/
 RUN playwright install chromium
 RUN playwright install-deps chromium
 
-# Create non-root user for security
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+# Use existing node user (UID 1000 already exists in playwright image)
+# or create a new user with a different UID
+RUN id -u node 2>/dev/null && useradd -m -u 10001 appuser || true; \
+    chown -R node:node /app || usermod -a -l appuser node 2>/dev/null
+USER node
 
 # Expose port
 EXPOSE 8080
