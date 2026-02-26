@@ -25,11 +25,7 @@ def override_settings(monkeypatch):
             return "test-service-key"
         elif key == "WORKOS_AUDIENCE" or key == "WORKOS_ISSUER":
             return "api.workos.com"
-        elif key == "HTTP_WORKER_URL":
-            return "http://localhost:8001"
-        elif key == "BROWSER_WORKER_URL":
-            return "http://localhost:8002"
-        elif key == "ORCHESTRATOR_URL":
+        elif key == "SDK_WORKER_URL":
             return "http://localhost:8003"
         elif key == "FRONTEND_URL":
             return "http://localhost:3000"
@@ -103,8 +99,6 @@ async def app_client(monkeypatch, test_user):
             SUPABASE_SERVICE_KEY="test-service-key",
             WORKOS_AUDIENCE="api.workos.com",
             WORKOS_ISSUER="api.workos.com",
-            HTTP_WORKER_URL="http://localhost:8001",
-            BROWSER_WORKER_URL="http://localhost:8002",
             SDK_WORKER_URL="http://localhost:8003",
         ),
     )
@@ -140,8 +134,6 @@ def get_test_settings():
         SUPABASE_SERVICE_KEY="test-service-key",
         WORKOS_AUDIENCE="api.workos.com",
         WORKOS_ISSUER="api.workos.com",
-        HTTP_WORKER_URL="http://localhost:8001",
-        BROWSER_WORKER_URL="http://localhost:8002",
         SDK_WORKER_URL="http://localhost:8003",
     )
 

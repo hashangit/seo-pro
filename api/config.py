@@ -37,13 +37,8 @@ try:
         PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
         PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
 
-        # Workers
-        HTTP_WORKER_URL: str | None = Field(default=None, description="HTTP worker URL")
-        BROWSER_WORKER_URL: str | None = Field(default=None, description="Browser worker URL")
+        # Workers (unified SDK worker - REQUIRED in production)
         SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
-
-        # Orchestrator
-        ORCHESTRATOR_URL: str | None = Field(default=None, description="Orchestrator URL")
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
@@ -156,13 +151,8 @@ except ImportError:
         PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
         PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
 
-        # Workers
-        HTTP_WORKER_URL: str | None = Field(default=None, description="HTTP worker URL")
-        BROWSER_WORKER_URL: str | None = Field(default=None, description="Browser worker URL")
+        # Workers (unified SDK worker - REQUIRED in production)
         SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
-
-        # Orchestrator
-        ORCHESTRATOR_URL: str | None = Field(default=None, description="Orchestrator URL")
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
@@ -280,11 +270,10 @@ def validate_required_settings() -> None:
             "GOOGLE_CLOUD_PROJECT": "Google Cloud project ID",
         }
 
-        # Workers are required in production
+        # SDK Worker is required in production
         required_vars.update(
             {
-                "HTTP_WORKER_URL": "HTTP worker URL for task execution",
-                "BROWSER_WORKER_URL": "Browser worker URL for visual analysis",
+                "SDK_WORKER_URL": "SDK worker URL for analysis execution",
             }
         )
 
