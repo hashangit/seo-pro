@@ -9,16 +9,18 @@ from typing import Literal
 
 # Try pydantic-settings first (recommended for v2.10+)
 try:
-    from pydantic import Field
-    from pydantic import field_validator as validator_decorator
+    from pydantic import Field, field_validator
     from pydantic_settings import BaseSettings, SettingsConfigDict
+
+    validator_decorator = field_validator
 
     class Settings(BaseSettings):
         """Application settings with validation."""
 
         # Environment
         ENVIRONMENT: Literal["development", "production", "staging"] = Field(
-            default="development", description="Application environment"
+            default="development",
+            description="Application environment"
         )
 
         # Supabase
@@ -29,43 +31,48 @@ try:
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
         WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
         WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
-        WORKOS_JWKS_URL: str = Field(default="https://api.workos.com/v1/jwks", description="WorkOS JWKS URL")
+        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
-        # PayHere
-        PAYHERE_MERCHANT_ID: str = Field(default="test-merchant-id", description="PayHere merchant ID")
-        PAYHERE_MERCHANT_SECRET: str = Field(default="test-merchant-secret", description="PayHere merchant secret")
-        PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
-        PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
+        # PayHere (Optional - integration pending IPG setup)
+        PAYHERE_MERCHANT_ID: str | None = None
+        PAYHERE_MERCHANT_SECRET: str | None = None
+        PAYHERE_SANDBOX: bool = True
+        PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
-        # Workers (unified SDK worker - REQUIRED in production)
-        SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
+        # Workers
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
+
+        # Orchestrator (Deprecated - replaced by SDK Worker)
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
-        CLOUD_RUN_LOCATION: str = Field(default="us-central1", description="Cloud Run location")
+        CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
         FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
-        API_URL: str = Field(default="http://localhost:8080", description="API URL")
-        PORT: int = Field(default=8080, description="API port")
+        API_URL: str = "http://localhost:8080"
+        PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: str | None = Field(default=None, description="Cloud Tasks queue path")
-        PAYHERE_ALLOWED_IPS: str | None = Field(default=None, description="PayHere allowed IPs")
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
             default=False,
-            description="Enable development mode (bypasses credit checks - NEVER enable in production)",
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
         )
 
         model_config: SettingsConfigDict = {
             "case_sensitive": False,
             "env_file": ".env",
             "env_prefix": "SEO_PRO_",
-            "extra": "ignore",
+            "extra": "ignore"
         }
 
         @validator_decorator("ENVIRONMENT")
@@ -132,7 +139,8 @@ except ImportError:
 
         # Environment
         ENVIRONMENT: Literal["development", "production", "staging"] = Field(
-            default="development", description="Application environment"
+            default="development",
+            description="Application environment"
         )
 
         # Supabase
@@ -143,36 +151,41 @@ except ImportError:
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
         WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
         WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
-        WORKOS_JWKS_URL: str = Field(default="https://api.workos.com/v1/jwks", description="WorkOS JWKS URL")
+        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
-        # PayHere
-        PAYHERE_MERCHANT_ID: str = Field(default="test-merchant-id", description="PayHere merchant ID")
-        PAYHERE_MERCHANT_SECRET: str = Field(default="test-merchant-secret", description="PayHere merchant secret")
-        PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
-        PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
+        # PayHere (Optional - integration pending IPG setup)
+        PAYHERE_MERCHANT_ID: str | None = None
+        PAYHERE_MERCHANT_SECRET: str | None = None
+        PAYHERE_SANDBOX: bool = True
+        PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
-        # Workers (unified SDK worker - REQUIRED in production)
-        SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
+        # Workers
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
+
+        # Orchestrator (Deprecated - replaced by SDK Worker)
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
-        CLOUD_RUN_LOCATION: str = Field(default="us-central1", description="Cloud Run location")
+        CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
         FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
-        API_URL: str = Field(default="http://localhost:8080", description="API URL")
-        PORT: int = Field(default=8080, description="API port")
+        API_URL: str = "http://localhost:8080"
+        PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: str | None = Field(default=None, description="Cloud Tasks queue path")
-        PAYHERE_ALLOWED_IPS: str | None = Field(default=None, description="PayHere allowed IPs")
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
             default=False,
-            description="Enable development mode (bypasses credit checks - NEVER enable in production)",
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
         )
 
         class Config:
@@ -253,7 +266,7 @@ def validate_required_settings() -> None:
     settings = get_settings()
     required_errors = []
 
-    # Base required vars (always needed)
+    # Base required vars (empty for non-production)
     required_vars: dict[str, str] = {}
 
     # Check required based on environment
@@ -264,18 +277,14 @@ def validate_required_settings() -> None:
             "WORKOS_AUDIENCE": "WorkOS audience for JWT validation",
             "WORKOS_ISSUER": "WorkOS issuer for JWT tokens",
             "WORKOS_CLIENT_ID": "WorkOS client ID",
-            "PAYHERE_MERCHANT_ID": "PayHere merchant ID",
-            "PAYHERE_MERCHANT_SECRET": "PayHere merchant secret for hash generation",
             "FRONTEND_URL": "Frontend application URL",
             "GOOGLE_CLOUD_PROJECT": "Google Cloud project ID",
         }
 
         # SDK Worker is required in production
-        required_vars.update(
-            {
-                "SDK_WORKER_URL": "SDK worker URL for analysis execution",
-            }
-        )
+        required_vars.update({
+            "SDK_WORKER_URL": "SDK worker URL for unified analysis execution",
+        })
 
     # Validate
     for var_name, description in required_vars.items():

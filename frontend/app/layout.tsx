@@ -3,7 +3,7 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { ErrorBoundary } from "@/components/error-boundary";
-import { Providers } from "./providers";
+import { Providers } from "@/components/providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -18,12 +18,18 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   const clientId = process.env.NEXT_PUBLIC_WORKOS_CLIENT_ID;
-  const redirectUri = process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI;
+  if (!clientId) {
+    throw new Error("Missing required environment variable: NEXT_PUBLIC_WORKOS_CLIENT_ID");
+  }
+  const redirectUri = process.env.NEXT_PUBLIC_WORKOS_REDIRECT_URI || "http://localhost:3000";
 
   return (
     <html lang="en">
       <body className={inter.className}>
-        <Providers clientId={clientId} redirectUri={redirectUri}>
+        <Providers 
+          clientId={clientId} 
+          redirectUri={`${redirectUri}/auth/callback`}
+        >
           <div className="min-h-screen flex flex-col">
             <Header />
             <main className="flex-1">

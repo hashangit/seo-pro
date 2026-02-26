@@ -62,14 +62,7 @@ gcloud services enable \
 4. Enable identity providers
 5. Note Client ID and Audience
 
-### 4. PayHere Account (for Sri Lanka)
-
-1. Go to https://payhere.lk
-2. Create merchant account
-3. Get Merchant ID and Secret
-4. Add domain for approval
-
-### 5. Z.AI API Key (for GLM Models)
+### 4. Z.AI API Key (for GLM Models)
 
 The SDK Worker uses GLM-4.7 via Z.AI's Anthropic-compatible endpoint for cost-effective AI analysis.
 
@@ -189,8 +182,6 @@ Update `.env` with deployed service URLs:
 | `SUPABASE_SERVICE_KEY` | Supabase service role key |
 | `WORKOS_CLIENT_ID` | WorkOS application client ID |
 | `WORKOS_AUDIENCE` | JWT validation audience |
-| `PAYHERE_MERCHANT_ID` | PayHere merchant ID |
-| `PAYHERE_MERCHANT_SECRET` | PayHere merchant secret |
 | `SDK_WORKER_URL` | URL of the deployed SDK Worker |
 | `FRONTEND_URL` | Frontend URL for CORS |
 

@@ -44,7 +44,7 @@ async def readiness_check():
     except Exception as e:
         checks["jwks"] = f"error: {str(e)}"
 
-    # Check SDK Worker (required for all analysis)
+    # Check SDK Worker (unified analysis worker)
     if settings.SDK_WORKER_URL:
         try:
             async with httpx.AsyncClient() as client:
