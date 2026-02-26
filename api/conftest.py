@@ -7,6 +7,7 @@ import uuid
 
 import httpx
 import pytest
+import pytest_asyncio
 from pydantic import BaseModel
 
 from api.config import Settings
@@ -36,13 +37,13 @@ def override_settings(monkeypatch):
     monkeypatch.setattr(os, "getenv", mock_getenv)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def httpx_client():
     """Create HTTP client for testing."""
     return httpx.AsyncClient(base_url="http://localhost:8080", timeout=30.0, follow_redirects=True)
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def supabase_client():
     """Create Supabase client for testing."""
     from supabase import create_client
@@ -50,7 +51,7 @@ async def supabase_client():
     return create_client("https://test.supabase.co", "test-service-key")
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def test_user():
     """Create a test user for authentication."""
 
@@ -67,7 +68,7 @@ async def test_user():
     }
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def auth_token(test_user):
     """Create a test JWT token."""
     from jose import jwt
@@ -85,7 +86,7 @@ async def auth_token(test_user):
     )
 
 
-@pytest.fixture
+@pytest_asyncio.fixture
 async def app_client(monkeypatch):
     """Create a test FastAPI app client."""
     from api.config import Settings
