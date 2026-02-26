@@ -1,21 +1,24 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   estimateAnalysis,
-  estimateAudit,
   runAudit,
+  discoverSiteURLs,
   ANALYSIS_TYPES,
   ANALYSIS_TYPE_LABELS,
   CREDIT_PRICING,
   type AnalysisType,
+  type URLDiscoveryResponse,
+  type AnalysisEstimateResponse,
 } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, AlertCircle, Zap, FileSearch, Globe } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Loader2, CheckCircle2, AlertCircle, Zap, FileSearch, Globe, Map, ExternalLink } from "lucide-react";
 
 type AnalysisMode = "individual" | "page_audit" | "site_audit";
 
@@ -59,9 +62,16 @@ export function AnalysisSelector() {
     new Set(["technical"])
   );
   const [loading, setLoading] = useState(false);
-  const [estimate, setEstimate] = useState<any>(null);
+  const [estimate, setEstimate] = useState<AnalysisEstimateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+
+  // Site audit specific state
+  const [discovering, setDiscovering] = useState(false);
+  const [discovery, setDiscovery] = useState<URLDiscoveryResponse | null>(null);
+  const [selectedUrls, setSelectedUrls] = useState<Set<string>>(new Set());
+  const [sitemapUrl, setSitemapUrl] = useState("");
+  const [showSitemapInput, setShowSitemapInput] = useState(false);
 
   const toggleType = useCallback((type: AnalysisType) => {
     setSelectedTypes((prev) => {
@@ -76,6 +86,68 @@ export function AnalysisSelector() {
     setEstimate(null);
   }, []);
 
+  const handleDiscoverUrls = async (manualSitemapUrl?: string) => {
+    if (!url) return;
+
+    setDiscovering(true);
+    setError(null);
+    setDiscovery(null);
+    setSelectedUrls(new Set());
+    setShowSitemapInput(false);
+
+    try {
+      const result = await discoverSiteURLs({
+        url,
+        sitemap_url: manualSitemapUrl,
+      });
+
+      if (result.error) {
+        setError(result.error);
+        if (!result.sitemap_found && !manualSitemapUrl) {
+          setShowSitemapInput(true);
+        }
+      } else {
+        setDiscovery(result);
+        // Select all URLs by default
+        setSelectedUrls(new Set(result.urls));
+        if (result.warning) {
+          // Show warning but don't block
+        }
+      }
+    } catch (err: unknown) {
+      const errorMsg = err instanceof Error ? err.message : "Failed to discover URLs";
+      setError(errorMsg);
+      setShowSitemapInput(true);
+    } finally {
+      setDiscovering(false);
+    }
+  };
+
+  const toggleUrl = useCallback((url: string) => {
+    setSelectedUrls((prev) => {
+      const next = new Set(prev);
+      if (next.has(url)) {
+        next.delete(url);
+      } else {
+        next.add(url);
+      }
+      return next;
+    });
+    setEstimate(null);
+  }, []);
+
+  const selectAllUrls = useCallback(() => {
+    if (discovery) {
+      setSelectedUrls(new Set(discovery.urls));
+    }
+    setEstimate(null);
+  }, [discovery]);
+
+  const deselectAllUrls = useCallback(() => {
+    setSelectedUrls(new Set());
+    setEstimate(null);
+  }, []);
+
   const handleEstimate = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -83,18 +155,12 @@ export function AnalysisSelector() {
     setEstimate(null);
 
     try {
-      let result;
-      if (activeTab === "site_audit") {
-        // Use existing audit estimate for site audits
-        result = await estimateAudit({ url });
-      } else {
-        // Use new analysis estimate for individual and page audit
-        result = await estimateAnalysis({
-          url,
-          analysis_mode: activeTab,
-          analysis_types: activeTab === "individual" ? Array.from(selectedTypes) : undefined,
-        });
-      }
+      const result = await estimateAnalysis({
+        url,
+        analysis_mode: activeTab,
+        analysis_types: activeTab === "individual" ? Array.from(selectedTypes) : undefined,
+        selected_urls: activeTab === "site_audit" ? Array.from(selectedUrls) : undefined,
+      });
       setEstimate(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to get estimate");
@@ -111,8 +177,11 @@ export function AnalysisSelector() {
 
     try {
       if (activeTab === "site_audit") {
-        // Site audit uses the existing flow
-        const result = await runAudit(estimate.quote_id);
+        // Site audit uses the quote flow
+        const result = await runAudit(
+          estimate.quote_id,
+          Array.from(selectedUrls)
+        );
         router.push(`/audit/${result.audit_id}`);
       } else {
         // For individual and page audit, we'll run directly
@@ -127,12 +196,26 @@ export function AnalysisSelector() {
   };
 
   const selectedCount = selectedTypes.size;
-  const estimatedCredits =
-    activeTab === "individual"
-      ? selectedCount * CREDIT_PRICING.INDIVIDUAL_REPORT
-      : activeTab === "page_audit"
-        ? CREDIT_PRICING.PAGE_AUDIT
-        : estimate?.credits_required || 0;
+  const selectedUrlCount = selectedUrls.size;
+  const estimatedCredits = useMemo(() => {
+    if (activeTab === "individual") {
+      return selectedCount * CREDIT_PRICING.INDIVIDUAL_REPORT;
+    } else if (activeTab === "page_audit") {
+      return CREDIT_PRICING.PAGE_AUDIT;
+    } else {
+      return estimate?.credits_required || (selectedUrlCount * CREDIT_PRICING.SITE_AUDIT_PER_PAGE);
+    }
+  }, [activeTab, selectedCount, selectedUrlCount, estimate]);
+
+  // Reset discovery when URL changes
+  const handleUrlChange = (newUrl: string) => {
+    setUrl(newUrl);
+    setDiscovery(null);
+    setSelectedUrls(new Set());
+    setShowSitemapInput(false);
+    setSitemapUrl("");
+    setEstimate(null);
+  };
 
   return (
     <Card className="mx-auto max-w-3xl">
@@ -152,6 +235,8 @@ export function AnalysisSelector() {
                 setActiveTab(tab.id);
                 setEstimate(null);
                 setError(null);
+                setDiscovery(null);
+                setSelectedUrls(new Set());
               }}
               className={`flex flex-1 flex-col items-center gap-1 px-4 py-3 text-sm font-medium transition-colors ${
                 activeTab === tab.id
@@ -179,30 +264,165 @@ export function AnalysisSelector() {
                 type="url"
                 placeholder="https://example.com"
                 value={url}
-                onChange={(e) => {
-                  setUrl(e.target.value);
-                  setEstimate(null);
-                }}
-                disabled={loading || running}
+                onChange={(e) => handleUrlChange(e.target.value)}
+                disabled={loading || running || discovering}
                 required
                 className="flex-1"
               />
-              <Button
-                type="submit"
-                disabled={loading || !url || running}
-                variant="secondary"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Estimating...
-                  </>
-                ) : (
-                  "Get Estimate"
-                )}
-              </Button>
+              {activeTab === "site_audit" && !discovery && (
+                <Button
+                  type="button"
+                  onClick={() => handleDiscoverUrls()}
+                  disabled={!url || discovering || loading || running}
+                  variant="secondary"
+                >
+                  {discovering ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Discovering...
+                    </>
+                  ) : (
+                    <>
+                      <Map className="mr-2 h-4 w-4" />
+                      Discover URLs
+                    </>
+                  )}
+                </Button>
+              )}
+              {activeTab !== "site_audit" && (
+                <Button
+                  type="submit"
+                  disabled={loading || !url || running}
+                  variant="secondary"
+                >
+                  {loading ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Estimating...
+                    </>
+                  ) : (
+                    "Get Estimate"
+                  )}
+                </Button>
+              )}
             </div>
           </div>
+
+          {/* Manual Sitemap Input (when auto-discovery fails) */}
+          {showSitemapInput && activeTab === "site_audit" && (
+            <div className="rounded-lg border border-yellow-500/50 bg-yellow-500/10 p-4">
+              <p className="font-medium text-yellow-700">Sitemap not found automatically</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Enter your sitemap URL manually (e.g., https://example.com/sitemap.xml)
+              </p>
+              <div className="mt-3 flex gap-2">
+                <Input
+                  type="url"
+                  placeholder="https://example.com/sitemap.xml"
+                  value={sitemapUrl}
+                  onChange={(e) => setSitemapUrl(e.target.value)}
+                  disabled={discovering}
+                  className="flex-1"
+                />
+                <Button
+                  type="button"
+                  onClick={() => handleDiscoverUrls(sitemapUrl)}
+                  disabled={!sitemapUrl || discovering}
+                  variant="secondary"
+                >
+                  {discovering ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : null}
+                  Use Sitemap
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* URL Selection for Site Audit */}
+          {activeTab === "site_audit" && discovery && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium">
+                    Select URLs to Analyze ({selectedUrlCount} of {discovery.urls.length} selected)
+                  </label>
+                  <div className="mt-1 flex items-center gap-2">
+                    <Badge variant={discovery.sitemap_found ? "default" : "secondary"}>
+                      Source: {discovery.source}
+                    </Badge>
+                    {discovery.sitemap_url && (
+                      <a
+                        href={discovery.sitemap_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center text-xs text-muted-foreground hover:text-foreground"
+                      >
+                        <ExternalLink className="mr-1 h-3 w-3" />
+                        View sitemap
+                      </a>
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="ghost" size="sm" onClick={selectAllUrls}>
+                    Select All
+                  </Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={deselectAllUrls}>
+                    Deselect All
+                  </Button>
+                </div>
+              </div>
+
+              {discovery.warning && (
+                <div className="rounded-md border border-yellow-500/30 bg-yellow-500/5 p-3 text-sm text-yellow-700">
+                  {discovery.warning}
+                </div>
+              )}
+
+              <div className="max-h-64 overflow-y-auto rounded-lg border">
+                {discovery.urls.length === 0 ? (
+                  <div className="p-4 text-center text-muted-foreground">
+                    No URLs found
+                  </div>
+                ) : (
+                  <div className="divide-y">
+                    {discovery.urls.map((pageUrl) => (
+                      <label
+                        key={pageUrl}
+                        className="flex cursor-pointer items-center gap-3 p-3 hover:bg-muted/50"
+                      >
+                        <Checkbox
+                          checked={selectedUrls.has(pageUrl)}
+                          onCheckedChange={() => toggleUrl(pageUrl)}
+                        />
+                        <span className="flex-1 truncate text-sm">{pageUrl}</span>
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {selectedUrlCount > 0 && (
+                <div className="flex justify-end">
+                  <Button
+                    type="submit"
+                    disabled={loading || running}
+                    variant="secondary"
+                  >
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Estimating...
+                      </>
+                    ) : (
+                      `Get Estimate (${selectedUrlCount} pages)`
+                    )}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Individual Analysis Type Selection */}
           {activeTab === "individual" && (
@@ -301,7 +521,7 @@ export function AnalysisSelector() {
               <Button
                 type="button"
                 onClick={handleRunAnalysis}
-                disabled={running || (activeTab === "individual" && selectedCount === 0)}
+                disabled={running || (activeTab === "individual" && selectedCount === 0) || (activeTab === "site_audit" && selectedUrlCount === 0)}
                 className="w-full"
                 size="lg"
               >
@@ -321,7 +541,7 @@ export function AnalysisSelector() {
           )}
 
           {/* Pricing Info (when no estimate) */}
-          {!estimate && (
+          {!estimate && activeTab !== "site_audit" && (
             <div className="rounded-lg border bg-muted/30 p-4 text-sm">
               <p className="font-medium">Credit Pricing</p>
               <ul className="mt-2 space-y-1 text-muted-foreground">
@@ -330,6 +550,22 @@ export function AnalysisSelector() {
                 <li>• Full site audit: {CREDIT_PRICING.SITE_AUDIT_PER_PAGE} credits per page</li>
                 <li>• $1 = {CREDIT_PRICING.CREDITS_PER_DOLLAR} credits | Min. topup: ${CREDIT_PRICING.MINIMUM_TOPUP_DOLLARS}</li>
               </ul>
+            </div>
+          )}
+
+          {/* Site Audit Pricing Info (before discovery) */}
+          {!estimate && activeTab === "site_audit" && !discovery && (
+            <div className="rounded-lg border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">How Site Audits Work</p>
+              <ol className="mt-2 space-y-2 text-muted-foreground list-decimal list-inside">
+                <li>Enter your website URL and click &quot;Discover URLs&quot;</li>
+                <li>We&apos;ll find pages from your sitemap or homepage links</li>
+                <li>Select which pages to include in the audit</li>
+                <li>Get a cost estimate based on selected pages (7 credits per page)</li>
+              </ol>
+              <p className="mt-3 text-muted-foreground">
+                Don&apos;t have a sitemap? We can discover URLs from your homepage links, or provide your sitemap URL manually.
+              </p>
             </div>
           )}
         </form>

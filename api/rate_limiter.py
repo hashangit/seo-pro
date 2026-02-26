@@ -201,8 +201,22 @@ class RateLimiter:
         if not auth_header:
             return None
 
-        # Note: In production, verify with WorkOS
-        # For now, return a placeholder
+        # Try to get user_id from request.state (set by auth middleware)
+        if hasattr(request, 'state') and hasattr(request.state, 'user_id'):
+            return request.state.user_id
+
+        # Fallback: Extract from JWT without full verification (for rate limiting only)
+        # This is safe because we're only using it for rate limiting, not auth
+        try:
+            if auth_header.startswith("Bearer "):
+                token = auth_header.replace("Bearer ", "")
+                # Decode without verification just to get the subject
+                from jose import jwt
+                unverified = jwt.get_unverified_claims(token)
+                return unverified.get("sub")
+        except Exception:
+            pass
+
         return None
 
     async def check_and_increment(
@@ -240,12 +254,21 @@ class RateLimiter:
         return allowed
 
     async def _check_redis(self, key: str, limit: int) -> tuple[bool, Dict[str, int]]:
-        """Check rate limit using Redis."""
+        """Check rate limit using Redis with atomic operations."""
         try:
-            current = await self._redis_client.incr(key)
-            if current == 1:
-                # Set expiry on first request
-                await self._redis_client.expire(key, 60)
+            # Use SET with NX and EX for atomic increment-or-create with expiry
+            # This prevents the race condition between incr and expire
+
+            # First, try to set the key with expiry if it doesn't exist
+            was_set = await self._redis_client.set(key, "1", ex=60, nx=True)
+
+            if was_set:
+                # Key was just created, this is the first request
+                current = 1
+            else:
+                # Key exists, increment it (expiry was already set when created)
+                current = await self._redis_client.incr(key)
+                # Note: incr preserves the existing TTL
 
             allowed = current <= limit
             return allowed, {
@@ -255,7 +278,7 @@ class RateLimiter:
             }
         except Exception:
             # Fallback to memory on Redis error
-            return await self._check_memory(key, limit)
+            return await self._memory.is_allowed(key, limit, 60)
 
     async def _check_memory(self, key: str, limit: int) -> tuple[bool, Dict[str, int]]:
         """Check rate limit using in-memory storage."""

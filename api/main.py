@@ -59,6 +59,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# ============================================================================
+# Security Headers Middleware
+# ============================================================================
+
+@app.middleware("http")
+async def add_security_headers(request: Request, call_next):
+    """Add security headers to all responses."""
+    response = await call_next(request)
+
+    # Prevent clickjacking
+    response.headers["X-Frame-Options"] = "DENY"
+
+    # Prevent MIME-type sniffing
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    # Enable XSS protection
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    # Referrer policy
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+
+    # HSTS for production
+    if settings.is_production:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
+    return response
+
 # ============================================================================
 # Global State (with thread-safe locking)
 # ============================================================================
@@ -144,9 +172,11 @@ async def verify_token(token: str) -> dict:
             detail="Token has expired"
         )
     except JWTError as e:
+        # Log detailed error server-side, return generic message to client
+        print(f"JWT validation error: {str(e)}")  # Server-side logging only
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=f"Invalid token: {str(e)}"
+            detail="Invalid authentication token"
         )
 
 
@@ -279,7 +309,8 @@ class AnalysisEstimateRequest(BaseModel):
     url: str
     analysis_mode: str = "individual"  # individual, page_audit, site_audit
     analysis_types: Optional[list[str]] = None  # For individual mode, which types to run
-    max_pages: Optional[int] = None  # For site_audit mode
+    max_pages: Optional[int] = None  # For site_audit mode (deprecated, use selected_urls)
+    selected_urls: Optional[list[str]] = None  # For site_audit mode, pre-selected URLs
 
     @field_validator("url")
     @classmethod
@@ -304,6 +335,39 @@ class AnalysisEstimateResponse(BaseModel):
     credits_required: int
     cost_usd: float
     breakdown: str
+    estimated_pages: Optional[int] = None  # For site_audit mode
+    quote_id: Optional[str] = None  # For site_audit mode (30 min expiry)
+
+
+class URLDiscoveryRequest(BaseModel):
+    """Request to discover URLs for a site."""
+    url: str
+    sitemap_url: Optional[str] = None  # Manual sitemap URL if auto-discovery fails
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v, **kwargs):
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("Invalid URL - must start with http:// or https://")
+        return v
+
+    @field_validator("sitemap_url")
+    @classmethod
+    def validate_sitemap_url(cls, v, **kwargs):
+        if v is not None and not v.startswith(("http://", "https://")):
+            raise ValueError("Invalid sitemap URL - must start with http:// or https://")
+        return v
+
+
+class URLDiscoveryResponse(BaseModel):
+    """Response with discovered URLs."""
+    urls: list[str]
+    source: str  # "sitemap", "homepage", "manual_sitemap", "error"
+    confidence: float
+    sitemap_found: bool
+    sitemap_url: Optional[str]
+    warning: Optional[str] = None
+    error: Optional[str] = None
 
 
 class AuditEstimateResponse(BaseModel):
@@ -321,6 +385,7 @@ class AuditEstimateResponse(BaseModel):
 class AuditRunRequest(BaseModel):
     """Run audit request."""
     quote_id: str
+    selected_urls: Optional[list[str]] = None  # URLs selected by user for site audit
 
 
 class AuditRunResponse(BaseModel):
@@ -346,7 +411,13 @@ class AuditStatusResponse(BaseModel):
 # Cloud Tasks Integration
 # ============================================================================
 
-async def submit_audit_to_orchestrator(audit_id: str, url: str, page_count: int, user_id: str):
+async def submit_audit_to_orchestrator(
+    audit_id: str,
+    url: str,
+    page_count: int,
+    user_id: str,
+    page_urls: Optional[list[str]] = None
+):
     """Submit audit job to SDK Worker for unified analysis."""
     sdk_worker_url = settings.SDK_WORKER_URL
 
@@ -357,10 +428,15 @@ async def submit_audit_to_orchestrator(audit_id: str, url: str, page_count: int,
         )
 
     # Submit single task to SDK Worker with full analysis
-    await submit_sdk_task(audit_id, url, sdk_worker_url)
+    await submit_sdk_task(audit_id, url, sdk_worker_url, page_urls)
 
 
-async def submit_sdk_task(audit_id: str, url: str, worker_url: str) -> str:
+async def submit_sdk_task(
+    audit_id: str,
+    url: str,
+    worker_url: str,
+    page_urls: Optional[list[str]] = None
+) -> str:
     """Submit audit task to SDK Worker."""
     from google.cloud import tasks_v2
     import uuid
@@ -368,16 +444,22 @@ async def submit_sdk_task(audit_id: str, url: str, worker_url: str) -> str:
 
     client = tasks_v2.CloudTasksClient()
 
+    payload = {
+        "audit_id": audit_id,
+        "url": url,
+        "analysis_type": "full"
+    }
+
+    # Include page URLs if provided (for site audits with user-selected pages)
+    if page_urls:
+        payload["page_urls"] = page_urls
+
     task = {
         "http_request": {
             "http_method": tasks_v2.HttpMethod.POST,
             "url": f"{worker_url}/analyze",
             "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({
-                "audit_id": audit_id,
-                "url": url,
-                "analysis_type": "full"
-            }).encode(),
+            "body": json.dumps(payload).encode(),
         },
         "name": f"{settings.queue_path}/tasks/audit-{audit_id}-{uuid.uuid4().hex[:8]}",
     }
@@ -493,6 +575,50 @@ async def get_credit_history(user: dict = Depends(get_current_user)):
 # Audit Endpoints
 # ============================================================================
 
+@app.post("/api/v1/audit/discover", response_model=URLDiscoveryResponse, tags=["Audits"])
+async def discover_site_urls(
+    request: URLDiscoveryRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Discover all URLs for a site.
+
+    This endpoint returns the full list of URLs found, allowing the user to
+    select which ones to include in the audit.
+
+    Discovery order:
+    1. If sitemap_url provided, use it directly
+    2. Try to find sitemap from robots.txt or common locations
+    3. Fall back to extracting internal links from homepage
+
+    Returns:
+    - urls: List of discovered URLs
+    - source: Where URLs came from (sitemap, homepage, manual_sitemap)
+    - confidence: How accurate the discovery is (1.0 for sitemap, 0.6 for homepage)
+    - sitemap_found: Whether a sitemap was found
+    - sitemap_url: URL of the sitemap if found
+    - warning: Any warnings about the discovery
+    - error: Any errors that occurred
+    """
+    from api.scanner.site import SiteScanner
+
+    scanner = SiteScanner()
+    try:
+        result = await scanner.discover_urls(request.url, request.sitemap_url)
+    finally:
+        await scanner.close()
+
+    return URLDiscoveryResponse(
+        urls=result.get("urls", []),
+        source=result.get("source", "error"),
+        confidence=result.get("confidence", 0.0),
+        sitemap_found=result.get("sitemap_found", False),
+        sitemap_url=result.get("sitemap_url"),
+        warning=result.get("warning"),
+        error=result.get("error")
+    )
+
+
 @app.post("/api/v1/audit/estimate", response_model=AuditEstimateResponse, tags=["Audits"])
 async def estimate_audit_cost(
     request: AuditEstimateRequest,
@@ -571,12 +697,18 @@ async def run_audit(
         if quote["user_id"] != http_user["id"]:
             raise HTTPException(status_code=403, detail="Not your quote")
 
+        # Get selected URLs from request or quote metadata
+        page_urls = request.selected_urls or quote.get("metadata", {}).get("selected_urls")
+
+        # Update page count based on selected URLs if provided
+        page_count = len(page_urls) if page_urls else quote["page_count"]
+
         # Create audit job directly
         audit_result = supabase.table("audits").insert({
             "user_id": http_user["id"],
             "url": quote["url"],
             "status": "queued",
-            "page_count": quote["page_count"],
+            "page_count": page_count,
             "credits_used": 0  # Free in dev mode
         }).execute()
 
@@ -587,8 +719,9 @@ async def run_audit(
             await submit_audit_to_orchestrator(
                 audit_id=audit_id,
                 url=quote["url"],
-                page_count=quote["page_count"],
-                user_id=http_user["id"]
+                page_count=page_count,
+                user_id=http_user["id"],
+                page_urls=page_urls
             )
         except Exception as e:
             print(f"Warning: Failed to submit tasks: {e}")
@@ -653,12 +786,18 @@ async def run_audit(
     # Mark quote as approved
     supabase.table("pending_audits").update({"status": "approved"}).eq("id", request.quote_id).execute()
 
+    # Get selected URLs from request or quote metadata
+    page_urls = request.selected_urls or quote.get("metadata", {}).get("selected_urls")
+
+    # Update page count based on selected URLs if provided
+    page_count = len(page_urls) if page_urls else quote["page_count"]
+
     # Create audit job
     audit_result = supabase.table("audits").insert({
         "user_id": http_user["id"],
         "url": quote["url"],
         "status": "queued",
-        "page_count": quote["page_count"],
+        "page_count": page_count,
         "credits_used": quote["credits_required"]
     }).execute()
 
@@ -669,12 +808,40 @@ async def run_audit(
         await submit_audit_to_orchestrator(
             audit_id=audit_id,
             url=quote["url"],
-            page_count=quote["page_count"],
-            user_id=http_user["id"]
+            page_count=page_count,
+            user_id=http_user["id"],
+            page_urls=page_urls
         )
     except Exception as e:
-        # Log error but don't fail - audit can be retried
-        print(f"Warning: Failed to submit tasks: {e}")
+        # CRITICAL: Refund credits when task submission fails
+        print(f"Error: Failed to submit tasks: {e}")
+
+        # Attempt to refund credits
+        try:
+            supabase.rpc("refund_credits", {
+                "p_user_id": http_user["id"],
+                "p_amount": quote["credits_required"],
+                "p_reference_id": audit_id,
+                "p_reference_type": "audit_refund",
+                "p_description": f"Task submission failed: {str(e)}"
+            }).execute()
+            print(f"Refunded {quote['credits_required']} credits to user {http_user['id']}")
+        except Exception as refund_error:
+            print(f"CRITICAL: Failed to refund credits: {refund_error}")
+
+        # Update audit status to failed
+        supabase.table("audits").update({
+            "status": "failed",
+            "error_message": "Failed to submit analysis to worker queue. Credits refunded."
+        }).eq("id", audit_id).execute()
+
+        # Update quote status
+        supabase.table("pending_audits").update({"status": "failed"}).eq("id", request.quote_id).execute()
+
+        raise HTTPException(
+            status_code=503,
+            detail="Unable to queue analysis. Your credits have been refunded. Please try again."
+        )
 
     return AuditRunResponse(
         audit_id=audit_id,
@@ -789,22 +956,57 @@ async def estimate_analysis(
 
     elif request.analysis_mode == "site_audit":
         # Full site audit - 7 credits × pages
-        from api.scanner.site import SiteScanner
+        # If selected_urls provided, use that count directly
+        if request.selected_urls:
+            page_count = len(request.selected_urls)
+        else:
+            # Fall back to discovery
+            from api.scanner.site import SiteScanner
 
-        scanner = SiteScanner()
-        try:
-            page_info = await scanner.estimate_pages(request.url)
-        finally:
-            await scanner.close()
+            scanner = SiteScanner()
+            try:
+                page_info = await scanner.estimate_pages(request.url)
+            finally:
+                await scanner.close()
 
-        page_count = page_info.get("page_count", 1)
-        if request.max_pages and page_count > request.max_pages:
-            page_count = request.max_pages
+            page_count = page_info.get("page_count", 1)
+            if request.max_pages and page_count > request.max_pages:
+                page_count = request.max_pages
 
         analysis_types = INDIVIDUAL_ANALYSIS_TYPES
         credits = calculate_site_audit_credits(page_count)
         breakdown_parts.append(format_cost_breakdown(page_count, credits))
         breakdown_parts.append("(Volume discount: 7 credits/page vs 8 for single page)")
+
+        # Create pending quote for site audits (30 min expiry)
+        supabase = get_supabase_client()
+        metadata = {"analysis_mode": "site_audit"}
+        if request.selected_urls:
+            metadata["selected_urls"] = request.selected_urls
+
+        quote_result = supabase.table("pending_audits").insert({
+            "user_id": user["id"],
+            "url": request.url,
+            "page_count": page_count,
+            "credits_required": credits,
+            "status": "pending",
+            "metadata": metadata,
+            "expires_at": (datetime.utcnow() + timedelta(minutes=30)).isoformat()
+        }).execute()
+        quote_id = quote_result.data[0]["id"] if quote_result.data else None
+
+        cost_usd = credits / CREDITS_PER_DOLLAR
+
+        return AnalysisEstimateResponse(
+            url=request.url,
+            analysis_mode=request.analysis_mode,
+            analysis_types=analysis_types,
+            credits_required=credits,
+            cost_usd=round(cost_usd, 2),
+            breakdown="\n".join(breakdown_parts),
+            estimated_pages=page_count,
+            quote_id=quote_id
+        )
 
     cost_usd = credits / CREDITS_PER_DOLLAR
 
@@ -814,7 +1016,8 @@ async def estimate_analysis(
         analysis_types=analysis_types,
         credits_required=credits,
         cost_usd=round(cost_usd, 2),
-        breakdown="\n".join(breakdown_parts)
+        breakdown="\n".join(breakdown_parts),
+        estimated_pages=1  # Individual and page audit are single page
     )
 
 

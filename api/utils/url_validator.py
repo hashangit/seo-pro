@@ -17,9 +17,12 @@ BLOCKED_HOSTNAMES = {
     "localhost",
     "127.0.0.1",
     "0.0.0.0",
+    "[::1]",  # IPv6 localhost
+    "[0:0:0:0:0:0:0:1]",  # IPv6 localhost (full notation)
+    "[::]",  # IPv6 unspecified address
 }
 
-# Private IP ranges
+# Private IP ranges (IPv4)
 PRIVATE_IP_PREFIXES = [
     "10.",
     "172.16.",
@@ -41,6 +44,17 @@ PRIVATE_IP_PREFIXES = [
     "192.168.",
     "127.",
     "169.254.",  # Link-local
+]
+
+# IPv6 private/reserved ranges (prefixes to block)
+IPV6_BLOCKED_PREFIXES = [
+    "::1",        # Loopback
+    "::",         # Unspecified
+    "fc",         # Unique local (fc00::/7)
+    "fd",         # Unique local (fd00::/8)
+    "fe80",       # Link-local
+    "fe::",       # Link-local (alternative)
+    "ff",         # Multicast
 ]
 
 # Allowed schemes
@@ -76,11 +90,11 @@ def validate_url_safe(url: str) -> tuple[bool, Optional[str]]:
         if hostname_lower in BLOCKED_HOSTNAMES:
             return False, "Access to internal services is not allowed"
 
-        # Check for private IP addresses
+        # Check for private IP addresses (both IPv4 and IPv6)
         try:
             ip = ipaddress.ip_address(parsed.hostname)
 
-            # Block private IPs
+            # Block private IPs (works for both IPv4 and IPv6)
             if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_reserved:
                 return False, "Access to private IP addresses is not allowed"
 
@@ -90,10 +104,15 @@ def validate_url_safe(url: str) -> tuple[bool, Optional[str]]:
 
         except ValueError:
             # Not an IP address, it's a hostname
-            # Check if hostname starts with private IP prefix
+            # Check if hostname starts with private IP prefix (IPv4)
             for prefix in PRIVATE_IP_PREFIXES:
                 if hostname_lower.startswith(prefix):
                     return False, "Access to private networks is not allowed"
+
+            # Check for IPv6 private prefixes in hostname
+            for ipv6_prefix in IPV6_BLOCKED_PREFIXES:
+                if hostname_lower.startswith(ipv6_prefix):
+                    return False, "Access to private IPv6 addresses is not allowed"
 
         # Check port
         if parsed.port not in ALLOWED_PORTS:

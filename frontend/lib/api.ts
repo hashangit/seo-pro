@@ -198,8 +198,37 @@ export async function estimateAudit(
   });
 }
 
+// ============================================================================
+// URL Discovery API
+// ============================================================================
+
+export interface URLDiscoveryRequest {
+  url: string;
+  sitemap_url?: string;
+}
+
+export interface URLDiscoveryResponse {
+  urls: string[];
+  source: "sitemap" | "homepage" | "manual_sitemap" | "error";
+  confidence: number;
+  sitemap_found: boolean;
+  sitemap_url: string | null;
+  warning?: string;
+  error?: string;
+}
+
+export async function discoverSiteURLs(
+  request: URLDiscoveryRequest
+): Promise<URLDiscoveryResponse> {
+  return apiRequest<URLDiscoveryResponse>("/api/v1/audit/discover", {
+    method: "POST",
+    body: JSON.stringify(request),
+  });
+}
+
 export interface AuditRunRequest {
   quote_id: string;
+  selected_urls?: string[];
 }
 
 export interface AuditRunResponse {
@@ -208,11 +237,12 @@ export interface AuditRunResponse {
 }
 
 export async function runAudit(
-  quote_id: string
+  quote_id: string,
+  selected_urls?: string[]
 ): Promise<AuditRunResponse> {
   return apiRequest<AuditRunResponse>("/api/v1/audit/run", {
     method: "POST",
-    body: JSON.stringify({ quote_id }),
+    body: JSON.stringify({ quote_id, selected_urls }),
   });
 }
 
@@ -441,7 +471,8 @@ export interface AnalysisEstimateRequest {
   url: string;
   analysis_mode: "individual" | "page_audit" | "site_audit";
   analysis_types?: string[]; // For individual mode
-  max_pages?: number; // For site_audit mode
+  max_pages?: number; // For site_audit mode (deprecated)
+  selected_urls?: string[]; // For site_audit mode, pre-selected URLs
 }
 
 export interface AnalysisEstimateResponse {
@@ -451,6 +482,8 @@ export interface AnalysisEstimateResponse {
   credits_required: number;
   cost_usd: number;
   breakdown: string;
+  estimated_pages?: number; // For site_audit mode
+  quote_id?: string; // For site_audit mode
 }
 
 /**

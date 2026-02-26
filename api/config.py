@@ -41,6 +41,7 @@ try:
         # Workers
         HTTP_WORKER_URL: Optional[str] = None
         BROWSER_WORKER_URL: Optional[str] = None
+        SDK_WORKER_URL: Optional[str] = None
 
         # Orchestrator
         ORCHESTRATOR_URL: Optional[str] = None
@@ -60,6 +61,12 @@ try:
         QUEUE_PATH: Optional[str] = None
         PAYHERE_ALLOWED_IPS: Optional[str] = None
 
+        # Development Mode (CRITICAL: Never enable in production)
+        DEV_MODE: bool = Field(
+            default=False,
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+        )
+
         model_config: SettingsConfigDict = {
             "case_sensitive": False,
             "env_file": ".env",
@@ -72,6 +79,17 @@ try:
         def validate_environment(cls, v: str, info) -> str:
             if isinstance(v, str) and v not in ["development", "production", "staging"]:
                 raise ValueError("ENVIRONMENT must be development, production, or staging")
+            return v
+
+        @validator_decorator("DEV_MODE")
+        @classmethod
+        def validate_dev_mode(cls, v: bool, info) -> bool:
+            """Prevent DEV_MODE in production/staging environments."""
+            if v and info.data.get("ENVIRONMENT") in ["production", "staging"]:
+                raise ValueError(
+                    "CRITICAL SECURITY: DEV_MODE cannot be enabled in production or staging. "
+                    "This would bypass all credit checks and payment processing."
+                )
             return v
 
         @property
@@ -143,6 +161,7 @@ except ImportError:
         # Workers
         HTTP_WORKER_URL: Optional[str] = None
         BROWSER_WORKER_URL: Optional[str] = None
+        SDK_WORKER_URL: Optional[str] = None
 
         # Orchestrator
         ORCHESTRATOR_URL: Optional[str] = None
@@ -162,6 +181,12 @@ except ImportError:
         QUEUE_PATH: Optional[str] = None
         PAYHERE_ALLOWED_IPS: Optional[str] = None
 
+        # Development Mode (CRITICAL: Never enable in production)
+        DEV_MODE: bool = Field(
+            default=False,
+            description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+        )
+
         class Config:
             case_sensitive = False
             env_file = ".env"
@@ -172,6 +197,17 @@ except ImportError:
         def validate_environment(cls, v: str) -> str:
             if v not in ["development", "production", "staging"]:
                 raise ValueError("ENVIRONMENT must be development, production, or staging")
+            return v
+
+        @validator("DEV_MODE")
+        @classmethod
+        def validate_dev_mode(cls, v: bool, values) -> bool:
+            """Prevent DEV_MODE in production/staging environments."""
+            if v and values.get("ENVIRONMENT") in ["production", "staging"]:
+                raise ValueError(
+                    "CRITICAL SECURITY: DEV_MODE cannot be enabled in production or staging. "
+                    "This would bypass all credit checks and payment processing."
+                )
             return v
 
         @property

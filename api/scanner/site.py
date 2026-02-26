@@ -327,6 +327,219 @@ class SiteScanner:
 
         return False
 
+    async def discover_urls(self, url: str, sitemap_url: Optional[str] = None) -> dict:
+        """
+        Discover all URLs for a site.
+
+        Args:
+            url: The base URL to scan
+            sitemap_url: Optional manual sitemap URL (if auto-discovery fails)
+
+        Returns:
+            {
+                "urls": list[str],  # List of discovered URLs
+                "source": str,      # "sitemap", "homepage", "manual_sitemap"
+                "confidence": float,
+                "sitemap_found": bool,
+                "sitemap_url": Optional[str],
+                "error": Optional[str]
+            }
+        """
+        try:
+            # Security: Validate URL to prevent SSRF attacks
+            is_valid, error_msg = validate_url_safe(url)
+            if not is_valid:
+                return {
+                    "urls": [],
+                    "source": "error",
+                    "confidence": 0.0,
+                    "sitemap_found": False,
+                    "sitemap_url": None,
+                    "error": f"URL validation failed: {error_msg}"
+                }
+
+            # Normalize URL
+            url = normalize_url(url)
+            parsed = urlparse(url)
+
+            # If manual sitemap URL provided, use it directly
+            if sitemap_url:
+                is_valid_sitemap, sitemap_error = validate_url_safe(sitemap_url)
+                if not is_valid_sitemap:
+                    return {
+                        "urls": [],
+                        "source": "manual_sitemap",
+                        "confidence": 0.0,
+                        "sitemap_found": False,
+                        "sitemap_url": None,
+                        "error": f"Invalid sitemap URL: {sitemap_error}"
+                    }
+
+                urls = await self._get_urls_from_sitemap(sitemap_url)
+                if urls:
+                    return {
+                        "urls": urls,
+                        "source": "manual_sitemap",
+                        "confidence": 1.0,
+                        "sitemap_found": True,
+                        "sitemap_url": sitemap_url
+                    }
+                else:
+                    return {
+                        "urls": [],
+                        "source": "manual_sitemap",
+                        "confidence": 0.0,
+                        "sitemap_found": True,
+                        "sitemap_url": sitemap_url,
+                        "error": "Could not extract URLs from provided sitemap"
+                    }
+
+            # Try auto-discovery from robots.txt or common locations
+            auto_sitemap_url = await self._find_sitemap(url)
+            if auto_sitemap_url:
+                urls = await self._get_urls_from_sitemap(auto_sitemap_url)
+                if urls:
+                    return {
+                        "urls": urls,
+                        "source": "sitemap",
+                        "confidence": 1.0,
+                        "sitemap_found": True,
+                        "sitemap_url": auto_sitemap_url
+                    }
+
+            # Fallback: get URLs from homepage
+            urls = await self._get_internal_links(url)
+            return {
+                "urls": urls,
+                "source": "homepage",
+                "confidence": 0.6,
+                "sitemap_found": False,
+                "sitemap_url": None,
+                "warning": "No sitemap found. Discovered URLs from homepage links. "
+                           "Consider providing a sitemap URL manually for more accurate results."
+            }
+
+        except Exception as e:
+            return {
+                "urls": [],
+                "source": "error",
+                "confidence": 0.0,
+                "sitemap_found": False,
+                "sitemap_url": None,
+                "error": str(e)
+            }
+
+    async def _get_urls_from_sitemap(self, sitemap_url: str) -> list:
+        """Extract all URLs from a sitemap (handles sitemap indexes)."""
+        client = await self._get_client()
+
+        try:
+            # Security: Check content-length first to prevent DoS
+            head_response = await client.head(sitemap_url)
+            content_length = int(head_response.headers.get("content-length", 0))
+            if content_length > MAX_CONTENT_SIZE:
+                # Return empty if too large
+                return []
+
+            response = await client.get(sitemap_url)
+            response.raise_for_status()
+
+            # Security: Limit response size
+            if len(response.content) > MAX_CONTENT_SIZE:
+                return []
+
+            # Check if it's a sitemap index
+            if "<sitemapindex" in response.text.lower():
+                return await self._get_urls_from_sitemap_index(sitemap_url, response.text)
+
+            # Regular sitemap - extract URLs
+            return self._extract_urls_from_xml(response.text)
+
+        except Exception:
+            return []
+
+    async def _get_urls_from_sitemap_index(self, sitemap_url: str, index_text: str) -> list:
+        """Extract URLs from a sitemap index (references other sitemaps)."""
+        soup = BeautifulSoup(index_text, "xml")
+
+        # Find all sitemap locations
+        sitemap_locs = [loc.text for loc in soup.find_all("loc") if "sitemap" in loc.parent.name.lower()]
+
+        if not sitemap_locs:
+            return []
+
+        # Security: Limit sub-sitemaps to prevent DoS
+        all_urls = []
+        tasks = []
+
+        for loc in sitemap_locs[:10]:  # Limit for performance
+            tasks.append(self._get_urls_from_sitemap(loc))
+
+        if tasks:
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for result in results:
+                if isinstance(result, list):
+                    all_urls.extend(result)
+
+        # Security: Cap at maximum
+        return all_urls[:MAX_SITEMAP_URLS]
+
+    async def _get_internal_links(self, url: str) -> list:
+        """Extract internal links from homepage."""
+        client = await self._get_client()
+
+        try:
+            response = await client.get(url)
+            response.raise_for_status()
+
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            # Extract all internal links
+            base_domain = urlparse(url).netloc
+            internal_links = set()
+
+            for a in soup.find_all("a", href=True):
+                href = a["href"]
+
+                # Parse the href
+                try:
+                    href_parsed = urlparse(href)
+
+                    # Check if it's an internal link
+                    if href_parsed.netloc == "" or href_parsed.netloc == base_domain:
+                        # Ignore common non-content links
+                        if not self._is_excluded_path(href_parsed.path):
+                            # Normalize and add
+                            full_url = urljoin(url, href)
+                            internal_links.add(full_url)
+
+                except Exception:
+                    continue
+
+            # Return as list, capped at reasonable maximum
+            return list(internal_links)[:500]
+
+        except Exception:
+            return []
+
+
+async def discover_site_urls(url: str, sitemap_url: Optional[str] = None) -> dict:
+    """
+    Convenience function to discover URLs for a site.
+
+    Args:
+        url: The base URL to scan
+        sitemap_url: Optional manual sitemap URL (if auto-discovery fails)
+
+    Returns:
+        Dict with urls, source, confidence, sitemap_found, sitemap_url, error
+    """
+    scanner = SiteScanner()
+    try:
+        return await scanner.discover_urls(url, sitemap_url)
+    finally:
+        await scanner.close()
+
 
 async def quick_page_count(url: str) -> int:
     """

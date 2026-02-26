@@ -23,6 +23,7 @@ This guide covers deploying the SEO Pro SaaS platform to production.
                    │  (Cloud Run)     │
                    │                  │
                    │ Claude Agent SDK │
+                   │ → GLM-4.7 (Z.AI) │
                    │ Playwright CLI   │
                    └──────────────────┘
 ```
@@ -68,7 +69,38 @@ gcloud services enable \
 3. Get Merchant ID and Secret
 4. Add domain for approval
 
+### 5. Z.AI API Key (for GLM Models)
+
+The SDK Worker uses GLM-4.7 via Z.AI's Anthropic-compatible endpoint for cost-effective AI analysis.
+
+1. Go to https://z.ai/model-api
+2. Register or login to your account
+3. Create an API Key in the [API Keys](https://z.ai/manage-apikey/apikey-list) management page
+4. Copy your API Key for use in deployment
+
+**Reference**: [Z.AI Documentation](https://docs.z.ai/llms.txt)
+
 ## Deployment Steps
+
+### Step 0: Setup Secret Manager (One-time)
+
+Store sensitive API keys in Google Secret Manager for secure access:
+
+```bash
+# Enable Secret Manager API
+gcloud services enable secretmanager.googleapis.com
+
+# Create secret for Z.AI API key
+echo -n "your-zai-api-key" | gcloud secrets create zai-api-key --data-file=-
+
+# Grant Cloud Run service account access to the secret
+PROJECT_ID=$(gcloud config get-value project)
+PROJECT_NUMBER=$(gcloud projects describe $PROJECT_ID --format='value(projectNumber)')
+
+gcloud secrets add-iam-policy-binding zai-api-key \
+  --member="serviceAccount:$PROJECT_NUMBER-compute@developer.gserviceaccount.com" \
+  --role="roles/secretmanager.secretAccessor"
+```
 
 ### Step 1: Deploy Cloud Run Services
 
@@ -83,6 +115,7 @@ gcloud run deploy seo-pro-gateway \
   --min-instances 0
 
 # Build and deploy SDK worker (unified - handles all analysis)
+# Uses GLM-4.7 via Z.AI's Anthropic-compatible endpoint
 gcloud run deploy seo-pro-sdk-worker \
   --source ./deploy/Dockerfile.sdk-worker \
   --region us-central1 \
@@ -90,7 +123,11 @@ gcloud run deploy seo-pro-sdk-worker \
   --allow-unauthenticated \
   --memory 2Gi \
   --cpu 1 \
-  --min-instances 0
+  --min-instances 0 \
+  --set-env-vars "ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic" \
+  --set-env-vars "API_TIMEOUT_MS=3000000" \
+  --set-env-vars "ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7" \
+  --set-secrets "ANTHROPIC_AUTH_TOKEN=zai-api-key:latest"
 ```
 
 ### Step 2: Create Cloud Tasks Queue
@@ -130,6 +167,30 @@ Update `.env` with deployed service URLs:
 - `FRONTEND_URL`
 - `API_URL`
 
+## Environment Variables Reference
+
+### SDK Worker (GLM Configuration)
+
+| Variable | Value | Purpose |
+|----------|-------|---------|
+| `ANTHROPIC_AUTH_TOKEN` | *(from Secret Manager)* | Z.AI API key for authentication |
+| `ANTHROPIC_BASE_URL` | `https://api.z.ai/api/anthropic` | Routes SDK calls to Z.AI endpoint |
+| `API_TIMEOUT_MS` | `3000000` | Extended timeout for long SEO analysis |
+| `ANTHROPIC_DEFAULT_SONNET_MODEL` | `glm-4.7` | GLM model for Sonnet-tier requests |
+
+### Gateway Service
+
+| Variable | Description |
+|----------|-------------|
+| `SUPABASE_URL` | Supabase project URL |
+| `SUPABASE_SERVICE_KEY` | Supabase service role key |
+| `WORKOS_CLIENT_ID` | WorkOS application client ID |
+| `WORKOS_AUDIENCE` | JWT validation audience |
+| `PAYHERE_MERCHANT_ID` | PayHere merchant ID |
+| `PAYHERE_MERCHANT_SECRET` | PayHere merchant secret |
+| `SDK_WORKER_URL` | URL of the deployed SDK Worker |
+| `FRONTEND_URL` | Frontend URL for CORS |
+
 ## Post-Deployment Checklist
 
 - [ ] All services respond to health checks
@@ -139,6 +200,7 @@ Update `.env` with deployed service URLs:
 - [ ] Audit estimation works
 - [ ] Audit execution completes
 - [ ] Results display correctly
+- [ ] GLM routing verified (check logs show `api.z.ai` requests)
 
 ## Cost Monitoring
 
@@ -169,3 +231,29 @@ curl https://sdk-worker-url.run.app/health
 gcloud run services logs seo-pro-gateway --follow
 gcloud run services logs seo-pro-sdk-worker --follow
 ```
+
+### Verify GLM Routing
+
+Check that SDK Worker is using Z.AI endpoint:
+
+```bash
+# Check environment variables are set
+gcloud run services describe seo-pro-sdk-worker \
+  --platform managed \
+  --region us-central1 \
+  --format='value(spec.template.spec.containers[0].env)'
+
+# Check logs for API calls (should show api.z.ai, not api.anthropic.com)
+gcloud logging read "resource.type=cloud_run_revision AND resource.labels.service_name=seo-pro-sdk-worker" \
+  --limit 50 \
+  --format='table(timestamp, textPayload)'
+```
+
+### Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| `401 Unauthorized` | Verify Z.AI API key is valid and not expired |
+| `404 Not Found` | Check `ANTHROPIC_BASE_URL` is set correctly |
+| Timeout errors | Increase `API_TIMEOUT_MS` or reduce analysis scope |
+| Secret not found | Verify secret name matches and service account has access |
