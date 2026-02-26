@@ -107,7 +107,10 @@ async def app_client(monkeypatch):
         ),
     )
 
-    async with httpx.AsyncClient(app=app, base_url="http://localhost:8080") as client:
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app),
+        base_url="http://localhost:8080"
+    ) as client:
         yield client
 
 
