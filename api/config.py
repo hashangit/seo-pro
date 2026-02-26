@@ -9,8 +9,9 @@ from typing import Literal
 
 # Try pydantic-settings first (recommended for v2.10+)
 try:
-    from pydantic_settings import BaseSettings, Field, SettingsConfigDict
-    from pydantic_settings import field_validator as validator_decorator
+    from pydantic import Field
+    from pydantic import field_validator as validator_decorator
+    from pydantic_settings import BaseSettings, SettingsConfigDict
 
     class Settings(BaseSettings):
         """Application settings with validation."""
