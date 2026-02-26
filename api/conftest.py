@@ -14,7 +14,7 @@ from api.config import Settings
 
 # Override settings for testing
 @pytest.fixture(autouse=True)
-async def override_settings(monkeypatch):
+def override_settings(monkeypatch):
     """Override settings for testing."""
     original_getenv = os.getenv
     original_getenv_returns = original_getenv.return_value
