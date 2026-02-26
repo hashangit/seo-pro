@@ -13,7 +13,7 @@ def get_supabase_client():
     """Get Supabase client singleton for database operations."""
     global _supabase_client
     if _supabase_client is None:
-        from config import get_settings
+        from api.config import get_settings
         from supabase import create_client
 
         settings = get_settings()
