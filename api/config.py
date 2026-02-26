@@ -21,43 +21,43 @@ try:
         )
 
         # Supabase
-        SUPABASE_URL: str = "https://test.supabase.co"
-        SUPABASE_SERVICE_KEY: str = "test-service-key"
+        SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
+        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
 
         # WorkOS
-        WORKOS_AUDIENCE: str = "api.workos.com"
-        WORKOS_ISSUER: str = "api.workos.com"
-        WORKOS_CLIENT_ID: str = "test-client-id"
-        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
+        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
+        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
+        WORKOS_JWKS_URL: str = Field(default="https://api.workos.com/v1/jwks", description="WorkOS JWKS URL")
 
         # PayHere
-        PAYHERE_MERCHANT_ID: str = "test-merchant-id"
-        PAYHERE_MERCHANT_SECRET: str = "test-merchant-secret"
-        PAYHERE_SANDBOX: bool = True
-        PAYHERE_CREDIT_RATE_LKR: float = 350.0
+        PAYHERE_MERCHANT_ID: str = Field(default="test-merchant-id", description="PayHere merchant ID")
+        PAYHERE_MERCHANT_SECRET: str = Field(default="test-merchant-secret", description="PayHere merchant secret")
+        PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
+        PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
 
         # Workers
-        HTTP_WORKER_URL: str | None = None
-        BROWSER_WORKER_URL: str | None = None
-        SDK_WORKER_URL: str | None = None
+        HTTP_WORKER_URL: str | None = Field(default=None, description="HTTP worker URL")
+        BROWSER_WORKER_URL: str | None = Field(default=None, description="Browser worker URL")
+        SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
 
         # Orchestrator
-        ORCHESTRATOR_URL: str | None = None
+        ORCHESTRATOR_URL: str | None = Field(default=None, description="Orchestrator URL")
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str = "test-project"
-        CLOUD_RUN_LOCATION: str = "us-central1"
+        GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
+        CLOUD_RUN_LOCATION: str = Field(default="us-central1", description="Cloud Run location")
 
         # Frontend
-        FRONTEND_URL: str = "http://localhost:3000"
+        FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
-        API_URL: str = "http://localhost:8080"
-        PORT: int = 8080
+        API_URL: str = Field(default="http://localhost:8080", description="API URL")
+        PORT: int = Field(default=8080, description="API port")
 
         # Cloud Tasks Queue
-        QUEUE_PATH: str | None = None
-        PAYHERE_ALLOWED_IPS: str | None = None
+        QUEUE_PATH: str | None = Field(default=None, description="Cloud Tasks queue path")
+        PAYHERE_ALLOWED_IPS: str | None = Field(default=None, description="PayHere allowed IPs")
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
@@ -140,43 +140,43 @@ except ImportError:
         )
 
         # Supabase
-        SUPABASE_URL: str = "https://test.supabase.co"
-        SUPABASE_SERVICE_KEY: str = "test-service-key"
+        SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
+        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
 
         # WorkOS
-        WORKOS_AUDIENCE: str = "api.workos.com"
-        WORKOS_ISSUER: str = "api.workos.com"
-        WORKOS_CLIENT_ID: str = "test-client-id"
-        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
+        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
+        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
+        WORKOS_JWKS_URL: str = Field(default="https://api.workos.com/v1/jwks", description="WorkOS JWKS URL")
 
         # PayHere
-        PAYHERE_MERCHANT_ID: str = "test-merchant-id"
-        PAYHERE_MERCHANT_SECRET: str = "test-merchant-secret"
-        PAYHERE_SANDBOX: bool = True
-        PAYHERE_CREDIT_RATE_LKR: float = 350.0
+        PAYHERE_MERCHANT_ID: str = Field(default="test-merchant-id", description="PayHere merchant ID")
+        PAYHERE_MERCHANT_SECRET: str = Field(default="test-merchant-secret", description="PayHere merchant secret")
+        PAYHERE_SANDBOX: bool = Field(default=True, description="Use PayHere sandbox")
+        PAYHERE_CREDIT_RATE_LKR: float = Field(default=350.0, description="Credit rate in LKR")
 
         # Workers
-        HTTP_WORKER_URL: str | None = None
-        BROWSER_WORKER_URL: str | None = None
-        SDK_WORKER_URL: str | None = None
+        HTTP_WORKER_URL: str | None = Field(default=None, description="HTTP worker URL")
+        BROWSER_WORKER_URL: str | None = Field(default=None, description="Browser worker URL")
+        SDK_WORKER_URL: str | None = Field(default=None, description="SDK worker URL")
 
         # Orchestrator
-        ORCHESTRATOR_URL: str | None = None
+        ORCHESTRATOR_URL: str | None = Field(default=None, description="Orchestrator URL")
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str = "test-project"
-        CLOUD_RUN_LOCATION: str = "us-central1"
+        GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
+        CLOUD_RUN_LOCATION: str = Field(default="us-central1", description="Cloud Run location")
 
         # Frontend
-        FRONTEND_URL: str = "http://localhost:3000"
+        FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
-        API_URL: str = "http://localhost:8080"
-        PORT: int = 8080
+        API_URL: str = Field(default="http://localhost:8080", description="API URL")
+        PORT: int = Field(default=8080, description="API port")
 
         # Cloud Tasks Queue
-        QUEUE_PATH: str | None = None
-        PAYHERE_ALLOWED_IPS: str | None = None
+        QUEUE_PATH: str | None = Field(default=None, description="Cloud Tasks queue path")
+        PAYHERE_ALLOWED_IPS: str | None = Field(default=None, description="PayHere allowed IPs")
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
