@@ -21,18 +21,18 @@ try:
         )
 
         # Supabase
-        SUPABASE_URL: str
-        SUPABASE_SERVICE_KEY: str
+        SUPABASE_URL: str = "https://test.supabase.co"
+        SUPABASE_SERVICE_KEY: str = "test-service-key"
 
         # WorkOS
-        WORKOS_AUDIENCE: str
-        WORKOS_ISSUER: str
-        WORKOS_CLIENT_ID: str
+        WORKOS_AUDIENCE: str = "api.workos.com"
+        WORKOS_ISSUER: str = "api.workos.com"
+        WORKOS_CLIENT_ID: str = "test-client-id"
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere
-        PAYHERE_MERCHANT_ID: str
-        PAYHERE_MERCHANT_SECRET: str
+        PAYHERE_MERCHANT_ID: str = "test-merchant-id"
+        PAYHERE_MERCHANT_SECRET: str = "test-merchant-secret"
         PAYHERE_SANDBOX: bool = True
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
@@ -45,11 +45,11 @@ try:
         ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str
+        GOOGLE_CLOUD_PROJECT: str = "test-project"
         CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
-        FRONTEND_URL: str
+        FRONTEND_URL: str = "http://localhost:3000"
 
         # API
         API_URL: str = "http://localhost:8080"
@@ -140,18 +140,18 @@ except ImportError:
         )
 
         # Supabase
-        SUPABASE_URL: str
-        SUPABASE_SERVICE_KEY: str
+        SUPABASE_URL: str = "https://test.supabase.co"
+        SUPABASE_SERVICE_KEY: str = "test-service-key"
 
         # WorkOS
-        WORKOS_AUDIENCE: str
-        WORKOS_ISSUER: str
-        WORKOS_CLIENT_ID: str
+        WORKOS_AUDIENCE: str = "api.workos.com"
+        WORKOS_ISSUER: str = "api.workos.com"
+        WORKOS_CLIENT_ID: str = "test-client-id"
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere
-        PAYHERE_MERCHANT_ID: str
-        PAYHERE_MERCHANT_SECRET: str
+        PAYHERE_MERCHANT_ID: str = "test-merchant-id"
+        PAYHERE_MERCHANT_SECRET: str = "test-merchant-secret"
         PAYHERE_SANDBOX: bool = True
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
@@ -164,11 +164,11 @@ except ImportError:
         ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str
+        GOOGLE_CLOUD_PROJECT: str = "test-project"
         CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
-        FRONTEND_URL: str
+        FRONTEND_URL: str = "http://localhost:3000"
 
         # API
         API_URL: str = "http://localhost:8080"
