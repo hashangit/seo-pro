@@ -202,7 +202,7 @@ Integrates with MCP servers for live SEO data — including official servers fro
 ## Documentation
 
 ### Claude Code Skill (CLI Tool)
-- [Features Overview](FEATURES.md)
+- [Features Overview](docs/FEATURES.md)
 - [Installation Guide](docs/INSTALLATION.md)
 - [Commands Reference](docs/COMMANDS.md)
 - [Architecture](docs/ARCHITECTURE.md)
@@ -210,7 +210,7 @@ Integrates with MCP servers for live SEO data — including official servers fro
 - [Troubleshooting](docs/TROUBLESHOOTING.md)
 
 ### SaaS Platform
-- [Deployment Guide](DEPLOYMENT.md) - Deploy the full SaaS platform
+- [Deployment Guide](docs/DEPLOYMENT.md) - Deploy the full SaaS platform
 - [Implementation Plans](.context/plans/) - Detailed architecture and pricing plans
 
 ## Quick Start (SaaS)

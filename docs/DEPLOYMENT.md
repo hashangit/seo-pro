@@ -106,12 +106,15 @@ gcloud secrets add-iam-policy-binding zai-api-key \
 
 ```bash
 # Build and deploy gateway
+# Note: Use Secret Manager for sensitive values (SUPABASE_SERVICE_KEY, etc.)
 gcloud run deploy seo-pro-gateway \
   --source ./deploy/Dockerfile.gateway \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
-  --set-env-vars "$(cat .env | grep -v '^#' | xargs)" \
+  --set-env-vars "ENVIRONMENT=production,FRONTEND_URL=https://your-frontend.vercel.app" \
+  --set-secrets "SUPABASE_SERVICE_KEY=supabase-service-key:latest" \
+  --set-secrets "WORKOS_CLIENT_ID=workos-client-id:latest" \
   --min-instances 0
 
 # Build and deploy SDK worker (unified - handles all analysis)

@@ -7,14 +7,14 @@
     "no-console": "error",
     "no-unused-vars": "warn",
     "@typescript-eslint/no-unused-vars": "warn",
-    "@typescript-eslint/no-explicit-any": "error"
-    "@typescript-eslint/no-floating-promises": "warn"
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-floating-promises": "warn",
     "@typescript-eslint/prefer-const": ["error", { "allowUnnecessaryThis": "off" }]
   },
   "ignorePatterns": [
     "node_modules/",
     ".next/",
-    "out/"
+    "out/",
     "public/"
   ]
 }
