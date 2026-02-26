@@ -4,6 +4,7 @@ Test configuration and fixtures.
 
 import os
 import uuid
+from unittest.mock import AsyncMock
 
 import httpx
 import pytest
@@ -87,7 +88,7 @@ async def auth_token(test_user):
 
 
 @pytest_asyncio.fixture
-async def app_client(monkeypatch):
+async def app_client(monkeypatch, test_user):
     """Create a test FastAPI app client."""
     from api.config import Settings
     from api.main import app
@@ -106,6 +107,20 @@ async def app_client(monkeypatch):
             SDK_WORKER_URL="http://localhost:8003",
         ),
     )
+
+    # Mock verify_token to return test user data without calling WorkOS
+    async def mock_verify_token(token: str) -> dict:
+        """Mock token verification that returns test user data."""
+        return {
+            "sub": str(test_user["id"]),
+            "email": test_user["email"],
+            "given_name": test_user["first_name"],
+            "family_name": test_user["last_name"],
+            "aud": "api.workos.com",
+            "iss": "api.workos.com",
+        }
+
+    monkeypatch.setattr("api.services.auth.verify_token", mock_verify_token)
 
     async with httpx.AsyncClient(app=app, base_url="http://localhost:8080") as client:
         yield client

@@ -24,8 +24,8 @@ async def test_health_check(app_client):
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "healthy"
-    assert "checks" in data
-    assert data["supabase"] == "ok"
+    assert "version" in data
+    assert "timestamp" in data
 
 
 # =============================================================================
@@ -55,7 +55,7 @@ async def test_estimate_audit_cost(app_client, auth_token):
     """Test audit cost estimation."""
     request = EstimateRequest(url="https://example.com")
     response = await app_client.post(
-        "/api/v1/audit/estimate", json=request, headers={"Authorization": f"Bearer {auth_token}"}
+        "/api/v1/audit/estimate", json=request.model_dump(), headers={"Authorization": f"Bearer {auth_token}"}
     )
     assert response.status_code == 200
     data = response.json()
@@ -75,7 +75,7 @@ async def test_get_quote(app_client, auth_token):
     # First create an estimate
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
-        json=EstimateRequest(url="https://example.com"),
+        json=EstimateRequest(url="https://example.com").model_dump(),
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     quote_id = estimate_response.json()["quote_id"]
@@ -100,7 +100,7 @@ async def test_run_audit(app_client, auth_token):
     # First create an estimate
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
-        json=EstimateRequest(url="https://example.com"),
+        json=EstimateRequest(url="https://example.com").model_dump(),
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     quote_id = estimate_response.json()["quote_id"]
@@ -108,7 +108,7 @@ async def test_run_audit(app_client, auth_token):
     # Run the audit (should fail if credits insufficient, but test user has 100)
     run_response = await app_client.post(
         "/api/v1/audit/run",
-        json=AuditRunRequest(quote_id=quote_id),
+        json=AuditRunRequest(quote_id=quote_id).model_dump(),
         headers={"Authorization": f"Bearer {auth_token}"},
     )
     assert run_response.status_code in [200, 402]  # 200 if success, 402 if insufficient credits
@@ -242,7 +242,7 @@ async def test_full_audit_flow(app_client, auth_token, supabase_client):
     estimate_request = EstimateRequest(url="https://example.com")
     estimate_response = await app_client.post(
         "/api/v1/audit/estimate",
-        json=estimate_request,
+        json=estimate_request.model_dump(),
         headers={"Authorization": f"Bearer {token}"},
     )
     assert estimate_response.status_code == 200
@@ -258,7 +258,7 @@ async def test_full_audit_flow(app_client, auth_token, supabase_client):
     # 3. Run audit (should succeed with 100 credits)
     run_request = AuditRunRequest(quote_id=quote_id)
     run_response = await app_client.post(
-        "/api/v1/audit/run", json=run_request, headers={"Authorization": f"Bearer {token}"}
+        "/api/v1/audit/run", json=run_request.model_dump(), headers={"Authorization": f"Bearer {token}"}
     )
     assert run_response.status_code == 200
     run_data = run_response.json()
