@@ -24,13 +24,13 @@ try:
         )
 
         # Supabase
-        SUPABASE_URL: str
-        SUPABASE_SERVICE_KEY: str
+        SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
+        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
 
         # WorkOS
-        WORKOS_AUDIENCE: str
-        WORKOS_ISSUER: str
-        WORKOS_CLIENT_ID: str
+        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
+        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere (Optional - integration pending IPG setup)
@@ -48,11 +48,11 @@ try:
         ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str
+        GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
         CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
-        FRONTEND_URL: str
+        FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
         API_URL: str = "http://localhost:8080"
@@ -144,13 +144,13 @@ except ImportError:
         )
 
         # Supabase
-        SUPABASE_URL: str
-        SUPABASE_SERVICE_KEY: str
+        SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
+        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
 
         # WorkOS
-        WORKOS_AUDIENCE: str
-        WORKOS_ISSUER: str
-        WORKOS_CLIENT_ID: str
+        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
+        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere (Optional - integration pending IPG setup)
@@ -168,11 +168,11 @@ except ImportError:
         ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
-        GOOGLE_CLOUD_PROJECT: str
+        GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
         CLOUD_RUN_LOCATION: str = "us-central1"
 
         # Frontend
-        FRONTEND_URL: str
+        FRONTEND_URL: str = Field(default="http://localhost:3000", description="Frontend URL")
 
         # API
         API_URL: str = "http://localhost:8080"
