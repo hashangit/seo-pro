@@ -91,6 +91,7 @@ async def auth_token(test_user):
 async def app_client(monkeypatch, test_user):
     """Create a test FastAPI app client."""
     from api.config import Settings
+    from api.core.dependencies import get_current_user
     from api.main import app
 
     # Override settings for testing
@@ -108,22 +109,19 @@ async def app_client(monkeypatch, test_user):
         ),
     )
 
-    # Mock verify_token to return test user data without calling WorkOS
-    async def mock_verify_token(token: str) -> dict:
-        """Mock token verification that returns test user data."""
-        return {
-            "sub": str(test_user["id"]),
-            "email": test_user["email"],
-            "given_name": test_user["first_name"],
-            "family_name": test_user["last_name"],
-            "aud": "api.workos.com",
-            "iss": "api.workos.com",
-        }
+    # Create a mock user to return from the dependency override
+    async def mock_get_current_user():
+        """Mock get_current_user that returns test user data."""
+        return test_user
 
-    monkeypatch.setattr("api.services.auth.verify_token", mock_verify_token)
+    # Override the dependency using FastAPI's mechanism
+    app.dependency_overrides[get_current_user] = mock_get_current_user
 
     async with httpx.AsyncClient(app=app, base_url="http://localhost:8080") as client:
         yield client
+
+    # Clean up the override after the test
+    app.dependency_overrides.clear()
 
 
 @pytest.fixture
