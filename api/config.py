@@ -5,8 +5,7 @@ Centralized configuration with validation and type safety.
 Compatible with both pydantic v2 and pydantic-settings.
 """
 
-import os
-from typing import Literal, Optional
+from typing import Literal
 
 # Try pydantic-settings first (recommended for v2.10+)
 try:
@@ -33,18 +32,18 @@ try:
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere (Optional - integration pending IPG setup)
-        PAYHERE_MERCHANT_ID: Optional[str] = None
-        PAYHERE_MERCHANT_SECRET: Optional[str] = None
+        PAYHERE_MERCHANT_ID: str | None = None
+        PAYHERE_MERCHANT_SECRET: str | None = None
         PAYHERE_SANDBOX: bool = True
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-        SDK_WORKER_URL: Optional[str] = None
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
 
         # Orchestrator (Deprecated - replaced by SDK Worker)
-        ORCHESTRATOR_URL: Optional[str] = None
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -58,8 +57,8 @@ try:
         PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: Optional[str] = None
-        PAYHERE_ALLOWED_IPS: Optional[str] = None
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
@@ -153,18 +152,18 @@ except ImportError:
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # PayHere (Optional - integration pending IPG setup)
-        PAYHERE_MERCHANT_ID: Optional[str] = None
-        PAYHERE_MERCHANT_SECRET: Optional[str] = None
+        PAYHERE_MERCHANT_ID: str | None = None
+        PAYHERE_MERCHANT_SECRET: str | None = None
         PAYHERE_SANDBOX: bool = True
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-        SDK_WORKER_URL: Optional[str] = None
+        HTTP_WORKER_URL: str | None = None
+        BROWSER_WORKER_URL: str | None = None
+        SDK_WORKER_URL: str | None = None
 
         # Orchestrator (Deprecated - replaced by SDK Worker)
-        ORCHESTRATOR_URL: Optional[str] = None
+        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -178,8 +177,8 @@ except ImportError:
         PORT: int = 8080
 
         # Cloud Tasks Queue
-        QUEUE_PATH: Optional[str] = None
-        PAYHERE_ALLOWED_IPS: Optional[str] = None
+        QUEUE_PATH: str | None = None
+        PAYHERE_ALLOWED_IPS: str | None = None
 
         # Development Mode (CRITICAL: Never enable in production)
         DEV_MODE: bool = Field(
@@ -249,7 +248,7 @@ except ImportError:
 
 
 # Global settings instance
-_settings: Optional[Settings] = None
+_settings: Settings | None = None
 
 
 def get_settings() -> Settings:
