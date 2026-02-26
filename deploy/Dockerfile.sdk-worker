@@ -22,7 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY workers/sdk_worker.py .
 COPY api/utils api/utils
-COPY config.py .
+COPY api/config.py .
 
 # Copy skills and agents for Claude Agent SDK
 # These are loaded at runtime to provide SEO analysis capabilities
