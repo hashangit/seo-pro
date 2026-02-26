@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { ShieldCheck, BarChart3, Zap, Globe2, Code2, FileSearch, Layout, Image, Target, XmlTree, Play } from "lucide-react";
-import { Metadata } from "next";
+import { ShieldCheck, BarChart3, Zap, Globe2, Code2, CodeXml, FileSearch, Layout, Image, Target, Play } from "lucide-react";
 
 const categories = [
   {
@@ -47,7 +46,7 @@ const categories = [
   {
     title: "Sitemap Architecture",
     description: "XML validation, lastmod checks, and proper indexing structure analysis.",
-    icon: XmlTree,
+    icon: CodeXml,
     color: "from-teal-600 to-cyan-500",
     analysisType: "sitemap",
     credits: "1",

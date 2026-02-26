@@ -6,12 +6,16 @@ Provides IP-based and user-based rate limiting to prevent abuse and ensure fair 
 
 import asyncio
 import json
+import logging
 import os
 from typing import Dict, Optional, Callable
 from functools import wraps
 
 from fastapi import Request, HTTPException, status
 from fastapi.responses import JSONResponse
+
+# Configure logging
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -276,7 +280,12 @@ class RateLimiter:
                 "remaining": max(0, limit - current),
                 "reset": 60
             }
-        except Exception:
+        except Exception as e:
+            # Log Redis failure - this is a security concern in production
+            logger.warning(
+                f"Redis rate limiter failed, falling back to in-memory: {e}. "
+                "WARNING: In-memory rate limiting is NOT distributed-safe in multi-instance deployments!"
+            )
             # Fallback to memory on Redis error
             return await self._memory.is_allowed(key, limit, 60)
 

@@ -178,6 +178,9 @@ export function AnalysisSelector() {
     try {
       if (activeTab === "site_audit") {
         // Site audit uses the quote flow
+        if (!estimate.quote_id) {
+          throw new Error("Quote ID is required for site audit");
+        }
         const result = await runAudit(
           estimate.quote_id,
           Array.from(selectedUrls)

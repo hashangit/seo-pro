@@ -322,7 +322,11 @@ async def analyze(request: AnalyzeRequest) -> Dict[str, Any]:
     if not validate_url_safe(request.url):
         raise HTTPException(status_code=400, detail="URL not allowed (SSRF protection)")
 
-    # Try SDK first, fallback to direct analysis
+    # Get environment
+    environment = os.getenv("ENVIRONMENT", "development")
+    is_production = environment == "production"
+
+    # Try SDK first
     try:
         from claude_agent_sdk import query  # noqa: F401
         result = await run_seo_analysis_with_sdk(
@@ -331,7 +335,17 @@ async def analyze(request: AnalyzeRequest) -> Dict[str, Any]:
             custom_prompt=request.prompt
         )
     except ImportError:
-        print("Warning: Claude Agent SDK not available, using fallback")
+        # P0 FIX: In production, fail fast instead of using inferior fallback
+        # Users are charged full credits and should get full quality analysis
+        if is_production:
+            print("CRITICAL: Claude Agent SDK not available in production!")
+            raise HTTPException(
+                status_code=503,
+                detail="Analysis service unavailable. Please try again later."
+            )
+
+        # Only use fallback in development
+        print("Warning: Claude Agent SDK not available, using fallback (development only)")
         result = await run_seo_analysis_fallback(
             url=request.url,
             analysis_type=request.analysis_type

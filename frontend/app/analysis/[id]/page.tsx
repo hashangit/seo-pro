@@ -164,7 +164,7 @@ export default function AnalysisResultsPage() {
           {analysis.status === "completed" && analysis.results_json && (
             <div className="space-y-6">
               {/* Score (if available) */}
-              {analysis.results_json.score !== undefined && (
+              {typeof analysis.results_json.score === 'number' && (
                 <div className="text-center">
                   <div className="text-5xl font-bold text-primary">
                     {analysis.results_json.score}

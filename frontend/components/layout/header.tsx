@@ -4,7 +4,7 @@ import Link from "next/link";
 import { CreditBalance } from "@/components/credits/credit-balance";
 import { AuthButton } from "@/components/auth/auth-button";
 import { SEOLogo } from "@/components/marketing/seo-logo";
-import { useAuth, signOut } from "@/lib/auth";
+import { useAuth } from "@workos-inc/authkit-react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -16,7 +16,8 @@ import {
 import { User, LogOut } from "lucide-react";
 
 export function Header() {
-  const { user, isAuthenticated, isLoading } = useAuth();
+  const { user, isLoading, signOut } = useAuth();
+  const isAuthenticated = !!user;
 
   const handleSignOut = async () => {
     await signOut();

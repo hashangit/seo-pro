@@ -1,12 +1,13 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
 import { getCreditHistory } from "@/lib/api";
+import { logger, LogContext } from "@/lib/logger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { formatCurrency, formatDate } from "@/lib/utils";
-import { ArrowLeft, Minus2, Plus2 } from "lucide-react";
+import { formatDate } from "@/lib/utils";
+import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 type Transaction = {
@@ -22,30 +23,35 @@ export default function CreditsPage() {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
+  const [isPending, startTransition] = useTransition();
+
+  const fetchHistory = async () => {
+    try {
+      const data = await getCreditHistory();
+      setTransactions(data.transactions || []);
+      setBalance(
+        data.transactions?.[0]?.balance_after || 0
+      );
+    } catch (err) {
+      logger.error(LogContext.CREDITS, err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    async function fetchHistory() {
-      try {
-        const data = await getCreditHistory();
-        setTransactions(data.transactions || []);
-        setBalance(
-          data.transactions?.[0]?.balance_after || 0
-        );
-      } catch (err) {
-        console.error("Failed to fetch credit history:", err);
-      } finally {
-        setLoading(false);
-      }
-    }
-
-    fetchHistory();
+    startTransition(() => fetchHistory());
   }, []);
+
+  const handleRefresh = () => {
+    startTransition(() => fetchHistory());
+  };
 
   const getTransactionIcon = (type: string) => {
     if (type === "purchase" || type === "bonus") {
-      return <Plus2 className="h-4 w-4 text-green-600" />;
+      return <Plus className="h-4 w-4 text-green-600" />;
     }
-    return <Minus2 className="h-4 w-4 text-red-600" />;
+    return <Minus className="h-4 w-4 text-red-600" />;
   };
 
   const getTransactionVariant = (type: string) => {
@@ -55,7 +61,9 @@ export default function CreditsPage() {
     return "secondary";
   };
 
-  if (loading) {
+  const isLoading = loading || isPending;
+
+  if (loading && transactions.length === 0) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-4xl">
@@ -91,12 +99,26 @@ export default function CreditsPage() {
             </Link>
             <h1 className="text-3xl font-bold">Credits</h1>
           </div>
-          {balance !== null && (
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Current Balance</p>
-              <p className="text-2xl font-bold">{balance} credits</p>
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isPending}
+            >
+              {isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                "Refresh"
+              )}
+            </Button>
+            {balance !== null && (
+              <div className="text-right">
+                <p className="text-sm text-muted-foreground">Current Balance</p>
+                <p className="text-2xl font-bold">{balance} credits</p>
+              </div>
+            )}
+          </div>
         </div>
 
         <div className="mb-6 grid gap-4 md:grid-cols-3">

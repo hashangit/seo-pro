@@ -1,62 +1,59 @@
 "use client";
 
-import { useEffect, useState, useRef } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useEffect, useState, useTransition, useRef, useCallback } from "react";
+import { useParams } from "next/navigation";
 import { getAuditStatus } from "@/lib/api";
+import { logger, LogContext } from "@/lib/logger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
 export default function AuditPage() {
   const params = useParams();
-  const router = useRouter();
   const auditId = params.id as string;
 
   const [audit, setAudit] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const pollingRef = useRef(true); // Use ref to avoid stale closure
+  const [isPolling, startTransition] = useTransition();
+  const pollingRef = useRef(true);
+
+  const fetchStatus = useCallback(async () => {
+    if (!auditId) return;
+
+    try {
+      const data = await getAuditStatus(auditId);
+      setAudit(data);
+
+      if (data.status === "completed" || data.status === "failed") {
+        pollingRef.current = false;
+        setLoading(false);
+      }
+    } catch (err) {
+      logger.error(LogContext.AUDIT, err);
+      setLoading(false);
+      pollingRef.current = false;
+    }
+  }, [auditId]);
 
   useEffect(() => {
     if (!auditId) return;
 
-    async function fetchStatus() {
-      try {
-        const data = await getAuditStatus(auditId);
-        setAudit(data);
-
-        if (data.status === "completed" || data.status === "failed") {
-          pollingRef.current = false;
-          setLoading(false);
-        }
-      } catch (err) {
-        console.error("Failed to fetch audit status:", err);
-        setLoading(false);
-        pollingRef.current = false;
-      }
-    }
-
     // Initial fetch
-    fetchStatus();
+    startTransition(() => fetchStatus());
 
     // Poll every 2 seconds if still processing with proper cleanup
     const interval = setInterval(() => {
       if (pollingRef.current) {
-        fetchStatus();
+        startTransition(() => fetchStatus());
       }
     }, 2000);
-
-    // Cleanup function - properly clear interval and ref
-    const cleanup = () => {
-      clearInterval(interval);
-      pollingRef.current = false;
-    };
 
     // Cleanup function - properly clear interval
     return () => {
       clearInterval(interval);
       pollingRef.current = false;
     };
-  }, [auditId]); // Only depend on auditId
+  }, [auditId, fetchStatus]);
 
   const statusColors = {
     queued: "bg-yellow-100 text-yellow-800",
@@ -68,7 +65,10 @@ export default function AuditPage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center">
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-primary" />
+          <p className="mt-4 text-sm text-muted-foreground">Loading audit status...</p>
+        </div>
       </div>
     );
   }
@@ -80,7 +80,7 @@ export default function AuditPage() {
           <XCircle className="mx-auto mb-4 h-12 w-12 text-destructive" />
           <h1 className="mb-2 text-2xl font-bold">Audit Not Found</h1>
           <p className="text-muted-foreground">
-            The audit you're looking for doesn't exist or may have been deleted.
+            The audit you&apos;re looking for doesn&apos;t exist or may have been deleted.
           </p>
         </div>
       </div>
@@ -96,11 +96,16 @@ export default function AuditPage() {
             <h1 className="text-3xl font-bold">SEO Audit Results</h1>
             <p className="text-muted-foreground">{audit.url}</p>
           </div>
-          <Badge
-            className={`text-sm ${statusColors[audit.status as keyof typeof statusColors]}`}
-          >
-            {audit.status.charAt(0).toUpperCase() + audit.status.slice(1)}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {isPolling && audit.status !== "completed" && audit.status !== "failed" && (
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+            )}
+            <Badge
+              className={`text-sm ${statusColors[audit.status as keyof typeof statusColors]}`}
+            >
+              {audit.status.charAt(0).toUpperCase() + audit.status.slice(1)}
+            </Badge>
+          </div>
         </div>
 
         {/* Stats */}
@@ -146,7 +151,7 @@ export default function AuditPage() {
         </div>
 
         {/* Results */}
-        {audit.status === "completed" && audit.results ? (
+        {audit.status === "completed" && audit.results && (
           <div className="space-y-6">
             {/* Technical Results */}
             {audit.results.technical && (

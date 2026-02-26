@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { logger, LogContext } from "@/lib/logger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 
@@ -29,12 +30,16 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("ErrorBoundary caught an error:", error, errorInfo);
+    logger.error(LogContext.ERROR_BOUNDARY, { error, componentStack: errorInfo.componentStack });
     this.setState({ hasError: true, error });
   }
 
+  handleReset = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
   render() {
-    if (this.state as ErrorBoundaryState).hasError) {
+    if ((this.state as ErrorBoundaryState).hasError) {
       return (
         <Card className="border-destructive">
           <CardHeader>
@@ -45,9 +50,15 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               <AlertCircle className="h-12 w-12 text-destructive" />
               <div>
                 <h3 className="text-lg font-semibold mb-2">An error occurred</h3>
-                <p className="text-sm text-muted-foreground">
+                <p className="text-sm text-muted-foreground mb-4">
                   {this.state.error?.message || "Please try again or contact support if the problem persists."}
                 </p>
+                <button
+                  onClick={this.handleReset}
+                  className="px-4 py-2 bg-primary text-primary-foreground rounded-md hover:bg-primary/90 transition-colors text-sm font-medium"
+                >
+                  Try Again
+                </button>
               </div>
             </div>
           </CardContent>

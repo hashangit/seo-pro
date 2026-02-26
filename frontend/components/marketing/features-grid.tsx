@@ -1,6 +1,7 @@
 import {
   BarChart3,
   Code2,
+  CodeXml,
   FileSearch,
   Globe2,
   Image,
@@ -8,7 +9,6 @@ import {
   ShieldCheck,
   Sparkles,
   Target,
-  XmlTree,
 } from "lucide-react";
 
 const features = [
@@ -35,7 +35,7 @@ const features = [
   {
     name: "Sitemap Architecture",
     description: "Analyze XML sitemaps, validate structure, and ensure proper indexing.",
-    icon: XmlTree,
+    icon: CodeXml,
   },
   {
     name: "International SEO",

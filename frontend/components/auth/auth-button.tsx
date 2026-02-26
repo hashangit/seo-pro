@@ -1,22 +1,46 @@
 "use client";
 
-import { SignInButton } from "@workos-inc/authkit-react";
+import { useAuth } from "@workos-inc/authkit-react";
 import { Button } from "@/components/ui/button";
+import { LogIn, LogOut } from "lucide-react";
 
-export function AuthButton() {
+interface AuthButtonProps {
+  variant?: "default" | "outline" | "ghost";
+  size?: "default" | "sm" | "lg";
+}
+
+export function AuthButton({ variant = "default", size = "sm" }: AuthButtonProps) {
+  const { user, signIn, signOut, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <Button variant={variant} size={size} disabled>
+        Loading...
+      </Button>
+    );
+  }
+
+  if (user) {
+    return (
+      <Button
+        variant="outline"
+        size={size}
+        onClick={() => signOut()}
+      >
+        <LogOut className="mr-2 h-4 w-4" />
+        Sign Out
+      </Button>
+    );
+  }
+
   return (
-    <SignInButton
-      provider="authkit"
-      state={{
-        // Optional state to pass through auth flow
-        returnTo: typeof window !== "undefined" ? window.location.pathname : "/",
-      }}
+    <Button
+      variant={variant}
+      size={size}
+      onClick={() => signIn()}
     >
-      {(label) => (
-        <Button variant="default" size="sm">
-          {label}
-        </Button>
-      )}
-    </SignInButton>
+      <LogIn className="mr-2 h-4 w-4" />
+      Sign In
+    </Button>
   );
 }

@@ -18,33 +18,18 @@ steps:
       - '.'
 
   # ============================================================================
-  # Build HTTP Worker
+  # Build SDK Worker (replaces HTTP Worker and Browser Worker)
   # ============================================================================
   - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-http-worker'
+    id: 'build-sdk-worker'
     args:
       - 'build'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:$COMMIT_SHA'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:$COMMIT_SHA'
       - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:latest'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:latest'
       - '-f'
-      - 'deploy/Dockerfile.http-worker'
-      - '.'
-
-  # ============================================================================
-  # Build Browser Worker
-  # ============================================================================
-  - name: 'gcr.io/cloud-builders/docker'
-    id: 'build-browser-worker'
-    args:
-      - 'build'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:$COMMIT_SHA'
-      - '-t'
-      - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:latest'
-      - '-f'
-      - 'deploy/Dockerfile.browser-worker'
+      - 'deploy/Dockerfile.sdk-worker'
       - '.'
 
   # ============================================================================
@@ -73,10 +58,8 @@ steps:
       - |
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/gateway:$COMMIT_SHA
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/gateway:latest
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:$COMMIT_SHA
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:latest
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:$COMMIT_SHA
-        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:latest
+        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:$COMMIT_SHA
+        docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:latest
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/orchestrator:$COMMIT_SHA
         docker push us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/orchestrator:latest
 
@@ -105,42 +88,23 @@ steps:
       - '--set-secrets=SUPABASE_URL=supabase-url:1,SUPABASE_SERVICE_KEY=supabase-key:1,WORKOS_CLIENT_ID=workos-client-id:1,WORKOS_AUDIENCE=workos-audience:1,PAYHERE_MERCHANT_ID=payhere-id:1,PAYHERE_MERCHANT_SECRET=payhere-secret:1'
 
   - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deploy-http-worker'
+    id: 'deploy-sdk-worker'
     entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
-      - 'seo-pro-http-worker'
-      - '--set-secrets=SUPABASE_URL=supabase-url:1,SUPABASE_SERVICE_KEY=supabase-key:1'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:$COMMIT_SHA'
-      - '--region=us-central1'
-      - '--platform=managed'
-      - '--allow-unauthenticated'
-      - '--port=8080'
-      - '--memory=512Mi'
-      - '--cpu=0.5'
-      - '--min-instances=0'
-      - '--max-instances=100'
-      - '--timeout=60'
-      - '--set-secrets=SUPABASE_URL=supabase-url:1,SUPABASE_SERVICE_KEY=supabase-key:1'
-
-  - name: 'gcr.io/cloud-builders/gcloud'
-    id: 'deploy-browser-worker'
-    entrypoint: 'gcloud'
-    args:
-      - 'run'
-      - 'deploy'
-      - 'seo-pro-browser-worker'
-      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:$COMMIT_SHA'
+      - 'seo-pro-sdk-worker'
+      - '--image=us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:$COMMIT_SHA'
       - '--region=us-central1'
       - '--platform=managed'
       - '--allow-unauthenticated'
       - '--port=8080'
       - '--memory=4Gi'
-      - '--cpu=1'
+      - '--cpu=2'
       - '--min-instances=0'
       - '--max-instances=10'
-      - '--timeout=120'
+      - '--timeout=300'
+      - '--set-secrets=SUPABASE_URL=supabase-url:1,SUPABASE_SERVICE_KEY=supabase-key:1'
 
   - name: 'gcr.io/cloud-builders/gcloud'
     id: 'deploy-orchestrator'
@@ -166,8 +130,7 @@ steps:
 # ============================================================================
 images:
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/gateway:$COMMIT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/http-worker:$COMMIT_SHA'
-  - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/browser-worker:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/sdk-worker:$COMMIT_SHA'
   - 'us-central1-docker.pkg.dev/$PROJECT_ID/seo-pro/orchestrator:$COMMIT_SHA'
 
 # ============================================================================

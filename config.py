@@ -33,10 +33,10 @@ try:
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # Payment Gateway (IPG)
-        # NOTE: Currently in DEV MODE - all users have unlimited access
+        # NOTE: DEV_MODE must be FALSE in production - validated at startup
         # TODO: Integrate a proper IPG (International Payment Gateway) and remove dev mode
         # PayHere integration has been removed - we will integrate a new IPG when ready
-        DEV_MODE: bool = True  # When True, skips payment and gives unlimited access
+        DEV_MODE: bool = False  # P0 FIX: Default to False for safety
 
         # Workers (unified SDK worker - REQUIRED in production)
         SDK_WORKER_URL: Optional[str] = None
@@ -129,10 +129,10 @@ except ImportError:
         WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
 
         # Payment Gateway (IPG)
-        # NOTE: Currently in DEV MODE - all users have unlimited access
+        # NOTE: DEV_MODE must be FALSE in production - validated at startup
         # TODO: Integrate a proper IPG (International Payment Gateway) and remove dev mode
         # PayHere integration has been removed - we will integrate a new IPG when ready
-        DEV_MODE: bool = True  # When True, skips payment and gives unlimited access
+        DEV_MODE: bool = False  # P0 FIX: Default to False for safety
 
         # Workers (unified SDK worker - REQUIRED in production)
         SDK_WORKER_URL: Optional[str] = None
@@ -217,6 +217,14 @@ def validate_required_settings() -> None:
     """Validate that all required settings are present."""
     settings = get_settings()
     required_errors = []
+
+    # P0 FIX: Prevent DEV_MODE in production - this is a critical security issue
+    if settings.is_production and settings.DEV_MODE:
+        raise RuntimeError(
+            "CRITICAL: DEV_MODE cannot be enabled in production! "
+            "This would give all users unlimited free access. "
+            "Set DEV_MODE=false in your production environment."
+        )
 
     # Check required based on environment
     if settings.is_production:

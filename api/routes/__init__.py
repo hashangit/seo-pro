@@ -1,4 +1,9 @@
-# Routes
-from . import credits, audit
+"""
+Route Modules for SEO Pro API
 
-__all__ = ["credits", "audit"]
+All API routes organized by domain.
+"""
+
+from . import health, credits, audits, analyses
+
+__all__ = ["health", "credits", "audits", "analyses"]
