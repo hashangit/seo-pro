@@ -263,6 +263,9 @@ def validate_required_settings() -> None:
     settings = get_settings()
     required_errors = []
 
+    # Base required vars (always needed)
+    required_vars: dict[str, str] = {}
+
     # Check required based on environment
     if settings.is_production:
         required_vars = {
