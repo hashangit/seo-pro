@@ -263,8 +263,6 @@ class CreditHistoryResponse(BaseModel):
 
 class AuditEstimateRequest(BaseModel):
     """Audit estimate request."""
-class AuditEstimateRequest(BaseModel):
-    """Audit estimate request."""
     url: str
     max_pages: Optional[int] = None
 
@@ -274,6 +272,38 @@ class AuditEstimateRequest(BaseModel):
         if not v.startswith(("http://", "https://")):
             raise ValueError("Invalid URL")
         return v
+
+
+class AnalysisEstimateRequest(BaseModel):
+    """Analysis estimate request for any analysis type."""
+    url: str
+    analysis_mode: str = "individual"  # individual, page_audit, site_audit
+    analysis_types: Optional[list[str]] = None  # For individual mode, which types to run
+    max_pages: Optional[int] = None  # For site_audit mode
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v, **kwargs):
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("Invalid URL - must start with http:// or https://")
+        return v
+
+    @field_validator("analysis_mode")
+    @classmethod
+    def validate_analysis_mode(cls, v, **kwargs):
+        if v not in ["individual", "page_audit", "site_audit"]:
+            raise ValueError("analysis_mode must be 'individual', 'page_audit', or 'site_audit'")
+        return v
+
+
+class AnalysisEstimateResponse(BaseModel):
+    """Analysis estimate response."""
+    url: str
+    analysis_mode: str
+    analysis_types: list[str]
+    credits_required: int
+    cost_usd: float
+    breakdown: str
 
 
 class AuditEstimateResponse(BaseModel):
@@ -316,8 +346,22 @@ class AuditStatusResponse(BaseModel):
 # Cloud Tasks Integration
 # ============================================================================
 
-async def submit_audit_task(audit_id: str, task_type: str, worker_url: str) -> str:
-    """Submit audit task to Cloud Tasks queue."""
+async def submit_audit_to_orchestrator(audit_id: str, url: str, page_count: int, user_id: str):
+    """Submit audit job to SDK Worker for unified analysis."""
+    sdk_worker_url = settings.SDK_WORKER_URL
+
+    if not sdk_worker_url:
+        raise HTTPException(
+            status_code=503,
+            detail="SDK Worker not configured. Please contact support."
+        )
+
+    # Submit single task to SDK Worker with full analysis
+    await submit_sdk_task(audit_id, url, sdk_worker_url)
+
+
+async def submit_sdk_task(audit_id: str, url: str, worker_url: str) -> str:
+    """Submit audit task to SDK Worker."""
     from google.cloud import tasks_v2
     import uuid
     import json
@@ -331,50 +375,15 @@ async def submit_audit_task(audit_id: str, task_type: str, worker_url: str) -> s
             "headers": {"Content-Type": "application/json"},
             "body": json.dumps({
                 "audit_id": audit_id,
-                "task_type": task_type
+                "url": url,
+                "analysis_type": "full"
             }).encode(),
         },
-        "name": f"{settings.queue_path}/tasks/audit-{audit_id}-{task_type}-{uuid.uuid4().hex[:8]}",
+        "name": f"{settings.queue_path}/tasks/audit-{audit_id}-{uuid.uuid4().hex[:8]}",
     }
 
     response = client.create_task(request={"parent": settings.queue_path, "task": task})
     return response.name.split("/")[-1]
-
-
-async def submit_audit_to_orchestrator(audit_id: str, url: str, page_count: int, user_id: str):
-    """Submit audit job to orchestrator for distributed processing."""
-    orchestrator_url = settings.ORCHESTRATOR_URL
-    if not orchestrator_url:
-        # Fallback: submit tasks directly
-        tasks = [
-            ("technical", settings.HTTP_WORKER_URL),
-            ("content", settings.HTTP_WORKER_URL),
-            ("schema", settings.HTTP_WORKER_URL),
-            ("sitemap", settings.HTTP_WORKER_URL),
-            ("programmatic", settings.HTTP_WORKER_URL),
-            ("visual", settings.BROWSER_WORKER_URL),
-        ]
-
-        if not all(w for _, w in tasks):
-            raise HTTPException(
-                status_code=503,
-                detail="Worker URLs not configured. Please contact support."
-            )
-
-        for task_type, worker_url in tasks:
-            await submit_audit_task(audit_id, task_type, worker_url)
-    else:
-        async with httpx.AsyncClient() as client:
-            await client.post(
-                f"{orchestrator_url}/submit",
-                json={
-                    "audit_id": audit_id,
-                    "user_id": user_id,
-                    "url": url,
-                    "page_count": page_count
-                },
-                timeout=30.0
-            )
 
 
 # ============================================================================
@@ -407,22 +416,16 @@ async def readiness_check():
     except Exception as e:
         checks["jwks"] = f"error: {str(e)}"
 
-    # Check Workers
-    if settings.HTTP_WORKER_URL:
+    # Check SDK Worker (required for all analysis)
+    if settings.SDK_WORKER_URL:
         try:
             async with httpx.AsyncClient() as client:
-                await client.get(f"{settings.HTTP_WORKER_URL}/health", timeout=5.0)
-                checks["http_worker"] = "ok"
+                await client.get(f"{settings.SDK_WORKER_URL}/health", timeout=5.0)
+                checks["sdk_worker"] = "ok"
         except Exception as e:
-            checks["http_worker"] = f"error: {str(e)}"
-
-    if settings.BROWSER_WORKER_URL:
-        try:
-            async with httpx.AsyncClient() as client:
-                await client.get(f"{settings.BROWSER_WORKER_URL}/health", timeout=5.0)
-                checks["browser_worker"] = "ok"
-        except Exception as e:
-            checks["browser_worker"] = f"error: {str(e)}"
+            checks["sdk_worker"] = f"error: {str(e)}"
+    else:
+        checks["sdk_worker"] = "not configured"
 
     all_ok = all(v == "ok" for v in checks.values())
     status_code = 200 if all_ok else 503
@@ -738,45 +741,655 @@ async def list_audits(
 
 
 # ============================================================================
-# Credit calculation utilities
+# Analysis Estimate Endpoint
 # ============================================================================
+
+@app.post("/api/v1/analyze/estimate", response_model=AnalysisEstimateResponse, tags=["Analysis"])
+async def estimate_analysis(
+    request: AnalysisEstimateRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Estimate credits required for any analysis type.
+
+    Modes:
+    - individual: Select specific analysis types (1 credit each)
+    - page_audit: All 12 analysis types on one page (8 credits)
+    - site_audit: All 12 analysis types per page, site-wide (7 credits × pages)
+    """
+    credits = 0
+    analysis_types = []
+    breakdown_parts = []
+
+    if request.analysis_mode == "individual":
+        # Individual reports - 1 credit each
+        if request.analysis_types:
+            # Validate analysis types
+            invalid_types = [t for t in request.analysis_types if t not in INDIVIDUAL_ANALYSIS_TYPES]
+            if invalid_types:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Invalid analysis types: {invalid_types}. Valid types: {INDIVIDUAL_ANALYSIS_TYPES}"
+                )
+            analysis_types = request.analysis_types
+        else:
+            # Default to all if none specified
+            analysis_types = INDIVIDUAL_ANALYSIS_TYPES
+
+        credits = len(analysis_types) * calculate_individual_report_credits()
+        breakdown_parts.append(format_individual_report_cost(len(analysis_types)))
+        breakdown_parts.append(f"Types: {', '.join(analysis_types)}")
+
+    elif request.analysis_mode == "page_audit":
+        # Full page audit - 8 credits for all 12 types
+        analysis_types = INDIVIDUAL_ANALYSIS_TYPES
+        credits = calculate_page_audit_credits()
+        breakdown_parts.append(format_page_audit_cost())
+        breakdown_parts.append("(Bundle discount: 12 types → 8 credits)")
+
+    elif request.analysis_mode == "site_audit":
+        # Full site audit - 7 credits × pages
+        from api.scanner.site import SiteScanner
+
+        scanner = SiteScanner()
+        try:
+            page_info = await scanner.estimate_pages(request.url)
+        finally:
+            await scanner.close()
+
+        page_count = page_info.get("page_count", 1)
+        if request.max_pages and page_count > request.max_pages:
+            page_count = request.max_pages
+
+        analysis_types = INDIVIDUAL_ANALYSIS_TYPES
+        credits = calculate_site_audit_credits(page_count)
+        breakdown_parts.append(format_cost_breakdown(page_count, credits))
+        breakdown_parts.append("(Volume discount: 7 credits/page vs 8 for single page)")
+
+    cost_usd = credits / CREDITS_PER_DOLLAR
+
+    return AnalysisEstimateResponse(
+        url=request.url,
+        analysis_mode=request.analysis_mode,
+        analysis_types=analysis_types,
+        credits_required=credits,
+        cost_usd=round(cost_usd, 2),
+        breakdown="\n".join(breakdown_parts)
+    )
+
+
+# ============================================================================
+# Analyses List Endpoint
+# ============================================================================
+
+class AnalysisListResponse(BaseModel):
+    """Response model for listing analyses."""
+    analyses: list
+    total: int
+    limit: int
+    offset: int
+    has_more: bool
+
+
+class AnalysisStatusResponse(BaseModel):
+    """Response model for a single analysis status."""
+    id: str
+    url: str
+    analysis_type: str
+    analysis_mode: str
+    credits_used: int
+    status: str
+    created_at: str
+    completed_at: Optional[str]
+    results: Optional[dict]
+    error_message: Optional[str]
+
+
+@app.get("/api/v1/analyses", response_model=AnalysisListResponse, tags=["Analysis"])
+async def list_analyses(
+    user: dict = Depends(get_current_user),
+    limit: int = 100,
+    offset: int = 0,
+    analysis_type: Optional[str] = None,
+    analysis_mode: Optional[str] = None,
+    status: Optional[str] = None
+):
+    """
+    List user's analyses with optional filtering.
+
+    Query params:
+    - limit: Max results (default 100)
+    - offset: Pagination offset
+    - analysis_type: Filter by type (technical, content, schema, etc.)
+    - analysis_mode: Filter by mode (individual, page_audit, site_audit)
+    - status: Filter by status (pending, processing, completed, failed)
+    """
+    supabase = get_supabase_client()
+
+    # Build query
+    query = supabase.table("analyses").select("*").eq("user_id", user["id"])
+
+    # Apply filters
+    if analysis_type:
+        query = query.eq("analysis_type", analysis_type)
+    if analysis_mode:
+        query = query.eq("analysis_mode", analysis_mode)
+    if status:
+        query = query.eq("status", status)
+
+    # Execute with pagination
+    result = query.order("created_at", desc=True).range(offset, offset + limit).execute()
+
+    analyses = result.data if result.data else []
+
+    # Get total count (separate query for accuracy)
+    count_query = supabase.table("analyses").select("id", count="exact").eq("user_id", user["id"])
+    if analysis_type:
+        count_query = count_query.eq("analysis_type", analysis_type)
+    if analysis_mode:
+        count_query = count_query.eq("analysis_mode", analysis_mode)
+    if status:
+        count_query = count_query.eq("status", status)
+
+    count_result = count_query.execute()
+    total_count = count_result.count if hasattr(count_result, 'count') else len(analyses)
+
+    return AnalysisListResponse(
+        analyses=analyses,
+        total=total_count,
+        limit=limit,
+        offset=offset,
+        has_more=offset + limit < total_count
+    )
+
+
+@app.get("/api/v1/analyses/{analysis_id}", response_model=AnalysisStatusResponse, tags=["Analysis"])
+async def get_analysis_status(
+    analysis_id: str,
+    user: dict = Depends(get_current_user)
+):
+    """Get status and results of a specific analysis."""
+    supabase = get_supabase_client()
+
+    result = supabase.table("analyses").select("*").eq("id", analysis_id).execute()
+
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Analysis not found")
+
+    analysis = result.data[0]
+
+    if analysis["user_id"] != user["id"]:
+        raise HTTPException(status_code=403, detail="Not your analysis")
+
+    return AnalysisStatusResponse(
+        id=analysis["id"],
+        url=analysis["url"],
+        analysis_type=analysis["analysis_type"],
+        analysis_mode=analysis["analysis_mode"],
+        credits_used=analysis["credits_used"],
+        status=analysis["status"],
+        created_at=analysis["created_at"],
+        completed_at=analysis.get("completed_at"),
+        results=analysis.get("results_json"),
+        error_message=analysis.get("error_message")
+    )
+
+
+# ============================================================================
+# Individual Analysis Endpoints
+# ============================================================================
+
+class AnalyzeRequest(BaseModel):
+    """Request model for individual analysis endpoints."""
+    url: str
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v, **kwargs):
+        if not v.startswith(("http://", "https://")):
+            raise ValueError("Invalid URL - must start with http:// or https://")
+        return v
+
+
+class AnalyzeResponse(BaseModel):
+    """Response model for individual analysis endpoints."""
+    category: str
+    score: Optional[int] = None
+    issues: list = []
+    warnings: list = []
+    passes: list = []
+    recommendations: list = []
+    error: Optional[str] = None
+
+
+async def proxy_to_worker(worker_url: str, endpoint: str, url: str) -> dict:
+    """Proxy analysis request to a worker service."""
+    async with httpx.AsyncClient(timeout=120.0) as client:  # Increased timeout for SDK analysis
+        try:
+            response = await client.post(
+                f"{worker_url}{endpoint}",
+                json={"url": url},
+                headers={"Content-Type": "application/json"},
+            )
+            response.raise_for_status()
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            return {"error": f"Worker error: {e.response.status_code}", "category": endpoint.replace("/analyze/", "")}
+        except httpx.RequestError as e:
+            return {"error": f"Worker unavailable: {str(e)}", "category": endpoint.replace("/analyze/", "")}
+
+
+async def run_individual_analysis(
+    url: str,
+    analysis_type: str,
+    user: dict
+) -> dict:
+    """
+    Run an individual analysis with credit deduction.
+
+    1. Check/validate worker is available
+    2. Deduct 1 credit (unless DEV_MODE)
+    3. Run analysis
+    4. Return results
+    """
+    worker_url = get_worker_url()
+    if not worker_url:
+        raise HTTPException(status_code=503, detail="Worker not configured")
+
+    # Deduct credit for individual report
+    supabase = get_supabase_client()
+    await deduct_analysis_credits(
+        user_id=user["id"],
+        credits=calculate_individual_report_credits(),
+        analysis_type=analysis_type,
+        url=url,
+        supabase=supabase
+    )
+
+    # Run analysis
+    result = await proxy_to_worker(worker_url, f"/analyze/{analysis_type}", url)
+    return result
+
+
+async def run_page_audit_analysis(
+    url: str,
+    user: dict
+) -> dict:
+    """
+    Run a full page audit with credit deduction.
+
+    1. Check/validate worker is available
+    2. Deduct 8 credits (unless DEV_MODE)
+    3. Run comprehensive analysis
+    4. Return results
+    """
+    worker_url = get_worker_url()
+    if not worker_url:
+        raise HTTPException(status_code=503, detail="Worker not configured")
+
+    # Deduct credits for page audit
+    supabase = get_supabase_client()
+    await deduct_analysis_credits(
+        user_id=user["id"],
+        credits=calculate_page_audit_credits(),
+        analysis_type="page_audit",
+        url=url,
+        supabase=supabase
+    )
+
+    # Run analysis
+    result = await proxy_to_worker(worker_url, "/analyze/page", url)
+    return result
+
+
+def get_worker_url(analysis_type: str = "http") -> str:
+    """Get the SDK Worker URL (unified worker for all analysis types)."""
+    if settings.SDK_WORKER_URL:
+        return settings.SDK_WORKER_URL
+    return None  # Will trigger 503 error in endpoint
+
+
+@app.post("/api/v1/analyze/technical", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_technical(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run technical SEO analysis only. (1 credit)
+
+    Analyzes: title tags, meta descriptions, canonicals, heading structure,
+    robots.txt, sitemap.xml, HTTPS, and Core Web Vitals indicators.
+    """
+    result = await run_individual_analysis(request.url, "technical", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="technical", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/content", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_content(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run content quality (E-E-A-T) analysis only. (1 credit)
+
+    Evaluates: Experience, Expertise, Authoritativeness, Trustworthiness,
+    content depth, readability, and topical authority.
+    """
+    result = await run_individual_analysis(request.url, "content", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="content", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/schema", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_schema(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run schema markup analysis only. (1 credit)
+
+    Detects: JSON-LD, Microdata, RDFa. Validates against Google requirements.
+    Identifies missing opportunities and deprecated types.
+    """
+    result = await run_individual_analysis(request.url, "schema", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="schema", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/geo", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_geo(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run GEO (Generative Engine Optimization) analysis only. (1 credit)
+
+    Analyzes: AI Overview optimization, ChatGPT/Perplexity visibility,
+    llms.txt compliance, citability scoring, and AI crawler accessibility.
+    """
+    result = await run_individual_analysis(request.url, "geo", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="geo", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/sitemap", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_sitemap(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run sitemap analysis only. (1 credit)
+
+    Validates: XML format, URL count, lastmod accuracy, coverage vs crawled pages.
+    """
+    result = await run_individual_analysis(request.url, "sitemap", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="sitemap", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/hreflang", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_hreflang(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run hreflang/international SEO analysis only. (1 credit)
+
+    Validates: self-referencing tags, return tag reciprocity, x-default,
+    ISO language/region codes, canonical alignment.
+    """
+    result = await run_individual_analysis(request.url, "hreflang", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="hreflang", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/images", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_images(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run image SEO analysis only. (1 credit)
+
+    Checks: alt text presence/quality, file sizes, formats (WebP/AVIF),
+    responsive images, lazy loading, CLS prevention.
+    """
+    result = await run_individual_analysis(request.url, "images", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="images", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/visual", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_visual(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run visual SEO analysis only (requires Playwright). (1 credit)
+
+    Analyzes: above-the-fold elements, H1 visibility, CTA visibility,
+    mobile rendering, responsive design, visual hierarchy.
+    """
+    result = await run_individual_analysis(request.url, "visual", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="visual", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/performance", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_performance(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run performance/Core Web Vitals analysis only (requires Playwright). (1 credit)
+
+    Measures: LCP (Largest Contentful Paint), INP (Interaction to Next Paint),
+    CLS (Cumulative Layout Shift), resource optimization, caching headers.
+    """
+    result = await run_individual_analysis(request.url, "performance", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="performance", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/page", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_page(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Deep single-page SEO analysis (comprehensive, all-in-one). (8 credits)
+
+    Comprehensive analysis of a single page covering:
+    - On-page SEO (title, meta, headings, URL structure)
+    - Content quality (word count, readability, E-E-A-T signals)
+    - Technical elements (canonical, robots, OG tags)
+    - Schema markup detection and validation
+    - Image optimization
+    - Core Web Vitals indicators
+
+    This is equivalent to the CLI command `/seo page <url>`.
+    Bundle discount: 12 individual reports would cost 12 credits, bundled at 8 credits.
+    """
+    result = await run_page_audit_analysis(request.url, user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="page", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/plan", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_plan(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run strategic SEO planning analysis. (1 credit)
+
+    Creates industry-specific SEO strategy with templates for:
+    - SaaS companies
+    - E-commerce sites
+    - Local service businesses
+    - Publishers
+    - Agencies
+
+    Includes competitive analysis, content strategy, and implementation roadmap.
+    """
+    result = await run_individual_analysis(request.url, "plan", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="plan", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/programmatic", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_programmatic(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Run programmatic SEO analysis and planning. (1 credit)
+
+    Analyzes scale SEO opportunities:
+    - Template page patterns
+    - Keyword clustering
+    - Content automation potential
+    - Implementation strategies
+    """
+    result = await run_individual_analysis(request.url, "programmatic", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="programmatic", error=result.get("error"))
+
+
+@app.post("/api/v1/analyze/competitor-pages", response_model=AnalyzeResponse, tags=["Analysis"])
+async def analyze_competitor_pages(
+    request: AnalyzeRequest,
+    user: dict = Depends(get_current_user)
+):
+    """
+    Analyze competitor comparison pages for SEO, GEO, and AEO. (1 credit)
+
+    Analyzes existing "X vs Y" and "Alternatives to X" pages on your site for:
+    - SEO optimization (title, meta, headings, schema)
+    - GEO (Generative Engine Optimization) for AI search
+    - AEO (Answer Engine Optimization) for voice/answer engines
+    - Content quality and E-E-A-T signals
+    - Feature matrix schema opportunities
+    """
+    result = await run_individual_analysis(request.url, "competitor-pages", user)
+    return AnalyzeResponse(**result) if "category" in result else AnalyzeResponse(category="competitor-pages", error=result.get("error"))
+
+
+# ============================================================================
+# Credit calculation utilities (New Pricing Model)
+# ============================================================================
+
+# Credit pricing constants
+CREDITS_PER_DOLLAR = 8  # $1 = 8 credits
+
+
+def calculate_site_audit_credits(page_count: int) -> int:
+    """
+    Calculate credits required for a full site audit.
+
+    Pricing: 7 credits × number of pages
+    Includes all 12 analysis types per page.
+    """
+    return page_count * 7
+
+
+def calculate_page_audit_credits() -> int:
+    """
+    Calculate credits required for a full page audit.
+
+    Pricing: 8 credits (fixed)
+    Includes all 12 analysis types on a single page.
+    This is a bundle discount (12 individual would cost 12 credits).
+    """
+    return 8
+
+
+def calculate_individual_report_credits() -> int:
+    """
+    Calculate credits required for a single analysis type.
+
+    Pricing: 1 credit (fixed)
+    Single analysis type on one URL.
+    """
+    return 1
+
 
 def calculate_credits(page_count: int) -> int:
     """
-    Calculate credits required based on page count.
-
-    Pricing:
-    - 1 page = 3 credits
-    - 10 pages = 5 credits
-    - Additional 10-page blocks = 2 credits each
+    Legacy function - now calculates site audit credits.
+    Kept for backward compatibility with existing audit endpoints.
     """
-    if page_count == 1:
-        return 3
-    elif page_count <= 10:
-        return 5
-    else:
-        additional_blocks = (page_count - 10 + 9) // 10
-        return 5 + (additional_blocks * 2)
+    return calculate_site_audit_credits(page_count)
 
 
 def format_cost_breakdown(page_count: int, credits: int) -> str:
-    """Generate human-readable cost explanation."""
+    """Generate human-readable cost explanation for site audits."""
     if settings.DEV_MODE:
         return f"FREE in Dev Mode - {page_count} pages will be analyzed"
 
-    credit_rate = 350  # Placeholder - will be replaced with IPG rate
+    cost_usd = credits / CREDITS_PER_DOLLAR
     if page_count == 1:
-        return f"1 page analysis: {credits} credits (${credits} / Rs. {credits * credit_rate})"
-    elif page_count <= 10:
-        return f"Up to 10 pages: {credits} credits (${credits} / Rs. {credits * credit_rate})"
+        return f"1 page site audit: {credits} credits (${cost_usd:.2f})"
     else:
-        additional = page_count - 10
-        blocks = (additional + 9) // 10
         return (
-            f"First 10 pages: 5 credits\n"
-            f"Additional {additional} pages (~{blocks} × 10): {blocks * 2} credits\n"
-            f"Total: {credits} credits (${credits} / Rs. {credits * credit_rate})"
+            f"Full site audit: {page_count} pages × 7 credits\n"
+            f"Total: {credits} credits (${cost_usd:.2f})"
         )
+
+
+def format_page_audit_cost() -> str:
+    """Generate cost explanation for full page audit."""
+    if settings.DEV_MODE:
+        return "FREE in Dev Mode - Full page audit (all 12 analysis types)"
+    return "Full page audit (all 12 analysis types): 8 credits ($1.00)"
+
+
+def format_individual_report_cost(count: int = 1) -> str:
+    """Generate cost explanation for individual reports."""
+    if settings.DEV_MODE:
+        return f"FREE in Dev Mode - {count} individual report{'s' if count != 1 else ''}"
+    cost_usd = count / CREDITS_PER_DOLLAR
+    return f"{count} individual report{'s' if count != 1 else ''}: {count} credit{'s' if count != 1 else ''} (${cost_usd:.2f})"
+
+
+async def deduct_analysis_credits(
+    user_id: str,
+    credits: int,
+    analysis_type: str,
+    url: str,
+    supabase
+) -> bool:
+    """
+    Deduct credits for analysis. Returns True if successful.
+
+    DEV MODE: Skips deduction entirely.
+    """
+    if settings.DEV_MODE:
+        return True
+
+    try:
+        deduct_result = supabase.rpc("deduct_credits", {
+            "p_user_id": user_id,
+            "p_amount": credits,
+            "p_reference_id": None,
+            "p_reference_type": "analysis",
+            "p_description": f"{analysis_type} analysis: {url}"
+        }).execute()
+
+        return deduct_result.data is not None and deduct_result.data
+    except Exception as e:
+        if "Insufficient credits" in str(e):
+            raise HTTPException(
+                status_code=402,
+                detail=f"Insufficient credits. Need {credits}, please top up."
+            )
+        raise
+
+
+# Analysis type to endpoint mapping for individual reports
+INDIVIDUAL_ANALYSIS_TYPES = [
+    "technical",
+    "content",
+    "schema",
+    "geo",
+    "sitemap",
+    "hreflang",
+    "images",
+    "visual",
+    "performance",
+    "plan",
+    "programmatic",
+    "competitor-pages",
+]
 
 
 # ============================================================================
@@ -786,6 +1399,14 @@ def format_cost_breakdown(page_count: int, credits: int) -> str:
 @app.on_event("startup")
 async def startup_event():
     """Initialize services on startup."""
+    # DEV MODE warning for production/staging
+    if settings.DEV_MODE and settings.ENVIRONMENT in ["production", "staging"]:
+        print("=" * 70)
+        print("⚠️  WARNING: DEV_MODE is enabled in {} environment!".format(settings.ENVIRONMENT.upper()))
+        print("⚠️  All credit checks are BYPASSED - users have unlimited access!")
+        print("⚠️  Set DEV_MODE=false before production deployment!")
+        print("=" * 70)
+
     # Prefetch JWKS to avoid cold-start delay
     try:
         await get_jwks()

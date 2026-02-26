@@ -6,29 +6,25 @@ This guide covers deploying the SEO Pro SaaS platform to production.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        SEO PRO SAAS                           │
+│                        SEO PRO SAAS                                  │
 └─────────────────────────────────────────────────────────────────────┘
 
     ┌─────────────┐  ┌──────────────┐  ┌──────────────┐
     │   Next.js   │  │  FastAPI     │  │  Supabase    │
-    │ Frontend    │◄─┤  Gateway     │◄─┤  PostgreSQL   │
-    │ (Vercel)    │  │ (Cloud Run)  │  │ (Data only)   │
+    │ Frontend    │◄─┤  Gateway     │◄─┤  PostgreSQL  │
+    │ (Vercel)    │  │ (Cloud Run)  │  │ (Data only)  │
     └─────────────┘  └──────┬───────┘  └──────────────┘
                             │
-        ┌───────────────────┴───────────────────┐
-        │                                      │
-        ▼                                      ▼
-┌──────────────┐                       ┌──────────────┐
-│ HTTP Worker  │                       │Browser Worker │
-│ (Cloud Run)  │                       │(Cloud Run)   │
-└──────────────┘                       └──────────────┘
-        │                                      │
-        └──────────────────┬───────────────────┘
-                           ▼
-                   ┌──────────────┐
-                   │ Cloud Tasks  │
-                   │ Orchestrator │
-                   └──────────────┘
+                            │ Cloud Tasks
+                            │ (sdk-worker-queue)
+                            ▼
+                   ┌──────────────────┐
+                   │   SDK Worker     │
+                   │  (Cloud Run)     │
+                   │                  │
+                   │ Claude Agent SDK │
+                   │ Playwright CLI   │
+                   └──────────────────┘
 ```
 
 ## Prerequisites
@@ -86,19 +82,9 @@ gcloud run deploy seo-pro-gateway \
   --set-env-vars "$(cat .env | grep -v '^#' | xargs)" \
   --min-instances 0
 
-# Build and deploy HTTP worker
-gcloud run deploy seo-pro-http-worker \
-  --source ./deploy/Dockerfile.http-worker \
-  --region us-central1 \
-  --platform managed \
-  --allow-unauthenticated \
-  --memory 256Mi \
-  --cpu 0.5 \
-  --min-instances 0
-
-# Build and deploy browser worker
-gcloud run deploy seo-pro-browser-worker \
-  --source ./deploy/Dockerfile.browser-worker \
+# Build and deploy SDK worker (unified - handles all analysis)
+gcloud run deploy seo-pro-sdk-worker \
+  --source ./deploy/Dockerfile.sdk-worker \
   --region us-central1 \
   --platform managed \
   --allow-unauthenticated \
@@ -110,7 +96,7 @@ gcloud run deploy seo-pro-browser-worker \
 ### Step 2: Create Cloud Tasks Queue
 
 ```bash
-gcloud tasks queues create seo-audit-queue \
+gcloud tasks queues create sdk-worker-queue \
   --project=seo-pro-production \
   --location=us-central1 \
   --max-dispatches-per-second=100 \
@@ -140,8 +126,7 @@ vercel --prod
 ### Step 5: Update Environment Variables
 
 Update `.env` with deployed service URLs:
-- `HTTP_WORKER_URL`
-- `BROWSER_WORKER_URL`
+- `SDK_WORKER_URL`
 - `FRONTEND_URL`
 - `API_URL`
 
@@ -173,11 +158,8 @@ gcloud run services list
 # Gateway
 curl https://gateway-url.run.app/api/v1/health
 
-# HTTP Worker
-curl https://http-worker-url.run.app/health
-
-# Browser Worker
-curl https://browser-worker-url.run.app/health
+# SDK Worker
+curl https://sdk-worker-url.run.app/health
 ```
 
 ### Logs
@@ -185,4 +167,5 @@ curl https://browser-worker-url.run.app/health
 ```bash
 # View logs
 gcloud run services logs seo-pro-gateway --follow
+gcloud run services logs seo-pro-sdk-worker --follow
 ```

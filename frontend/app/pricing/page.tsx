@@ -1,58 +1,59 @@
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2 } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { CheckCircle2, Zap, FileSearch, Globe } from "lucide-react";
 import { Metadata } from "next";
 
-// Get credit rate from environment to avoid hardcoding
-const CREDIT_RATE_LKR = parseInt(process.env.NEXT_PUBLIC_PAYHERE_CREDIT_RATE_LKR || "350", 10);
+// Credit pricing constants
+const CREDITS_PER_DOLLAR = 8;
+const MINIMUM_TOPUP = 8;
 
 // Page metadata for SEO
 export const metadata: Metadata = {
   title: "Pricing - SEO Pro",
-  description: "Simple, credit-based pricing for SEO analysis. See our affordable pricing tiers.",
-  keywords: ["SEO pricing", "website audit cost", "SEO analysis credits", "PayHere credits"],
+  description: "Simple, credit-based pricing for SEO analysis. $1 = 8 credits. Pay only for what you analyze.",
+  keywords: ["SEO pricing", "website audit cost", "SEO analysis credits", "credit-based SEO"],
   openGraph: {
     title: "SEO Pro Pricing",
-    description: "Simple, credit-based pricing for SEO analysis",
+    description: "Simple, credit-based pricing for SEO analysis. $1 = 8 credits.",
     type: "website",
   },
-}; // Rs. 350 per credit
+};
 
-const pricingTiers = [
+const analysisTiers = [
   {
-    name: "Starter",
-    pages: "1",
-    credits: 3,
-    usd: 3,
-    lkr: 3 * CREDIT_RATE_LKR,
-    description: "Perfect for single page analysis",
+    name: "Quick Analysis",
+    icon: Zap,
+    credits: 1,
+    description: "Single analysis type",
+    examples: ["Technical SEO", "Content Quality", "Schema Markup"],
+    priceNote: "per report",
   },
   {
-    name: "Standard",
-    pages: "Up to 10",
-    credits: 5,
-    usd: 5,
-    lkr: 5 * CREDIT_RATE_LKR,
-    description: "Best value for small sites",
-  },
-  {
-    name: "Growing",
-    pages: "20 pages",
-    credits: 7,
-    usd: 7,
-    lkr: 7 * CREDIT_RATE_LKR,
-    description: "For expanding websites",
+    name: "Full Page Audit",
+    icon: FileSearch,
+    credits: 8,
+    description: "All 12 analysis types",
+    examples: ["One page, complete analysis", "Bundle discount: 33% off"],
+    priceNote: "per page",
     popular: true,
   },
   {
-    name: "Business",
-    pages: "50 pages",
-    credits: 13,
-    usd: 13,
-    lkr: 13 * CREDIT_RATE_LKR,
-    description: "Comprehensive site audit",
+    name: "Full Site Audit",
+    icon: Globe,
+    credits: 7,
+    description: "All 12 types × pages",
+    examples: ["10 pages = 70 credits", "100 pages = 700 credits"],
+    priceNote: "per page",
   },
+];
+
+const creditPackages = [
+  { credits: 64, price: 8, label: "Starter" },
+  { credits: 160, price: 20, label: "Pro", popular: true },
+  { credits: 400, price: 50, label: "Business" },
+  { credits: 800, price: 100, label: "Enterprise" },
 ];
 
 export default function PricingPage() {
@@ -63,104 +64,108 @@ export default function PricingPage() {
         <div className="mb-12 text-center">
           <h1 className="mb-4 text-4xl font-bold">Simple, Credit-Based Pricing</h1>
           <p className="text-lg text-muted-foreground">
-            Pay only for what you analyze. No subscriptions, no monthly fees.
+            $1 = {CREDITS_PER_DOLLAR} credits. Pay only for what you analyze. No subscriptions.
           </p>
         </div>
 
-        {/* Pricing Cards */}
-        <div className="mb-12 grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-          {pricingTiers.map((tier) => (
-            <Card
-              key={tier.name}
-              className={`relative ${
-                tier.popular
-                  ? "border-primary shadow-lg scale-105"
-                  : "border-border"
-              }`}
-            >
-              {tier.popular && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2">
-                  <span className="rounded-full bg-primary px-3 py-1 text-xs font-semibold text-primary-foreground">
-                    Most Popular
-                  </span>
-                </div>
-              )}
-              <CardHeader>
-                <CardTitle className="text-xl">{tier.name}</CardTitle>
-                <div className="mt-2 text-3xl font-bold">
-                  ${tier.usd}
-                </div>
-                <CardDescription className="mt-2">
-                  {tier.pages} pages
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-2">
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">{tier.description}</span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">
-                      Rs. {tier.lkr.toLocaleString()} (~${tier.usd} USD)
-                    </span>
-                  </li>
-                  <li className="flex items-start gap-2">
-                    <CheckCircle2 className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span className="text-sm">Credits never expire</span>
-                  </li>
-                </ul>
-
-                <Link href="/credits/purchase" className="block">
-                  <Button className="w-full" variant={tier.popular ? "default" : "outline"}>
-                    Purchase Credits
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
-          ))}
+        {/* Analysis Pricing */}
+        <div className="mb-12">
+          <h2 className="mb-6 text-2xl font-bold text-center">Analysis Pricing</h2>
+          <div className="grid gap-6 md:grid-cols-3">
+            {analysisTiers.map((tier) => (
+              <Card
+                key={tier.name}
+                className={`relative ${
+                  tier.popular
+                    ? "border-primary shadow-lg"
+                    : "border-border"
+                }`}
+              >
+                {tier.popular && (
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                    <Badge className="bg-primary px-3 py-1 text-xs font-semibold">
+                      Most Popular
+                    </Badge>
+                  </div>
+                )}
+                <CardHeader className="text-center">
+                  <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                    <tier.icon className="h-6 w-6 text-primary" />
+                  </div>
+                  <CardTitle className="text-xl">{tier.name}</CardTitle>
+                  <div className="mt-2">
+                    <span className="text-4xl font-bold">{tier.credits}</span>
+                    <span className="text-muted-foreground"> credits</span>
+                  </div>
+                  <CardDescription className="mt-2">
+                    {tier.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2">
+                    {tier.examples.map((example) => (
+                      <li key={example} className="flex items-start gap-2">
+                        <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+                        <span className="text-sm">{example}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="pt-2 text-center text-sm text-muted-foreground">
+                    ${(tier.credits / CREDITS_PER_DOLLAR).toFixed(2)} {tier.priceNote}
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
         </div>
 
-        {/* Custom Pricing */}
-        <Card className="mb-12">
-          <CardHeader>
-            <CardTitle>Custom Analysis</CardTitle>
-            <CardDescription>
-              For sites with more than 50 pages
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-4">
-              Large sites are priced at 2 credits per additional 10 pages.
-              The first 10 pages cost 5 credits, then each additional
-              10-page block costs 2 credits.
-            </p>
-            <Link href="/credits/purchase">
-              <Button className="w-full" variant="outline">
-                Buy Custom Credits
-              </Button>
-            </Link>
-          </CardContent>
-        </Card>
+        {/* Credit Packages */}
+        <div className="mb-12">
+          <h2 className="mb-6 text-2xl font-bold text-center">Buy Credits</h2>
+          <div className="grid gap-4 md:grid-cols-4">
+            {creditPackages.map((pkg) => (
+              <Card
+                key={pkg.label}
+                className={`text-center ${pkg.popular ? "border-primary" : ""}`}
+              >
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-lg">{pkg.label}</CardTitle>
+                  {pkg.popular && (
+                    <Badge className="mx-auto mt-1" variant="secondary">Best Value</Badge>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="text-3xl font-bold">${pkg.price}</div>
+                  <div className="text-sm text-muted-foreground">{pkg.credits} credits</div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+          <p className="mt-4 text-center text-sm text-muted-foreground">
+            Minimum purchase: ${MINIMUM_TOPUP} (64 credits) • No upper limit
+          </p>
+        </div>
 
-        {/* Features */}
-        <div className="text-center">
-          <h2 className="mb-6 text-2xl font-bold">Everything Included</h2>
-          <div className="grid gap-4 md:grid-cols-3 text-left">
+        {/* All Features Included */}
+        <div className="mb-12">
+          <h2 className="mb-6 text-2xl font-bold text-center">12 Analysis Types Included</h2>
+          <div className="grid gap-3 md:grid-cols-4 text-left">
             {[
-              "Technical SEO Analysis",
+              "Technical SEO",
               "Content Quality (E-E-A-T)",
-              "Schema Markup Detection",
+              "Schema Markup",
               "AI Search Optimization",
-              "Sitemap Architecture",
+              "Sitemap Analysis",
               "International SEO",
-              "Visual Analysis",
-              "Performance Metrics",
               "Image Optimization",
+              "Visual Analysis",
+              "Core Web Vitals",
+              "Strategic SEO Planning",
+              "Programmatic SEO",
+              "Competitor Comparison",
             ].map((feature) => (
-              <div key={feature} className="flex items-start gap-2">
-                <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0 mt-0.5" />
+              <div key={feature} className="flex items-center gap-2">
+                <CheckCircle2 className="h-4 w-4 text-primary flex-shrink-0" />
                 <span className="text-sm">{feature}</span>
               </div>
             ))}
@@ -168,7 +173,7 @@ export default function PricingPage() {
         </div>
 
         {/* FAQ */}
-        <div className="mt-12">
+        <div className="mb-12">
           <h2 className="mb-6 text-2xl font-bold text-center">
             Frequently Asked Questions
           </h2>
@@ -176,19 +181,19 @@ export default function PricingPage() {
             {[
               {
                 q: "How are credits calculated?",
-                a: "1 page = 3 credits, 10 pages = 5 credits, additional 10-page blocks = 2 credits each.",
+                a: `Individual report: 1 credit ($0.125). Full page audit: 8 credits ($1.00) for all 12 types. Full site audit: 7 credits per page. $1 = ${CREDITS_PER_DOLLAR} credits.`,
+              },
+              {
+                q: "What's the bundle discount?",
+                a: "A full page audit includes all 12 analysis types at 8 credits. If you ran each individually, it would cost 12 credits. That's a 33% discount!",
               },
               {
                 q: "Do credits expire?",
                 a: "No! Credits never expire. Use them whenever you want.",
               },
               {
-                q: "What payment methods do you accept?",
-                a: "We accept PayHere (Sri Lanka) which supports VISA, MasterCard, AMEX, and mobile wallets like eZ cash, mCash, and Genie.",
-              },
-              {
-                q: "Can I get a refund?",
-                a: "Due to the nature of SEO analysis services, refunds are not available once an audit has been initiated.",
+                q: "What's the minimum purchase?",
+                a: `Minimum topup is $${MINIMUM_TOPUP} (64 credits). This gives you 8 full page audits or 64 individual reports.`,
               },
             ].map((item) => (
               <Card key={item.q}>
@@ -204,7 +209,7 @@ export default function PricingPage() {
         </div>
 
         {/* CTA */}
-        <div className="mt-12 text-center">
+        <div className="text-center">
           <Card className="mx-auto max-w-2xl bg-gradient-to-r from-blue-600 to-cyan-500 text-white">
             <CardContent className="py-8">
               <h3 className="mb-4 text-2xl font-bold">Ready to analyze your site?</h3>
@@ -215,10 +220,10 @@ export default function PricingPage() {
                     variant="secondary"
                     className="w-full bg-white text-primary hover:bg-white/90"
                   >
-                    Start Free Audit
+                    Start Analysis
                   </Button>
                 </Link>
-                <Link href="/credits/purchase" className="flex-1">
+                <Link href="/credits" className="flex-1">
                   <Button
                     size="lg"
                     className="w-full border-white bg-white/10 text-white hover:bg-white/20"

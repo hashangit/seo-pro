@@ -1,4 +1,4 @@
-import { AuditForm } from "@/components/audit/audit-form";
+import { AnalysisSelector } from "@/components/analysis/analysis-selector";
 import { FeaturesGrid } from "@/components/marketing/features-grid";
 import { CTASection } from "@/components/marketing/cta-section";
 import { HeroSection } from "@/components/marketing/hero-section";
@@ -10,7 +10,7 @@ export default function HomePage() {
       <FeaturesGrid />
       <section className="py-20 bg-muted/50">
         <div className="container mx-auto px-4">
-          <AuditForm />
+          <AnalysisSelector />
         </div>
       </section>
       <CTASection />

@@ -37,3 +37,7 @@ pydantic-settings>=2.6.0,<3.0.0
 urllib3>=2.6.3,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-2025-66418
 validators>=0.22.0,<1.0.0
 python-dotenv>=1.0.0,<2.0.0
+
+# Claude Agent SDK (includes anthropic)
+claude-agent-sdk>=0.1.0
+click>=8.1.0,<9.0.0

@@ -91,6 +91,7 @@ SUPABASE_ANON_KEY=eyJxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 # ============================================================================
 FRONTEND_URL=http://localhost:3000
 API_URL=http://localhost:8080
+SDK_WORKER_URL=http://localhost:8081
 
 # ============================================================================
 # Environment
@@ -99,7 +100,7 @@ ENVIRONMENT=development
 DEV_MODE=true
 ```
 
-> **Note:** You can leave `GOOGLE_CLOUD_PROJECT`, `HTTP_WORKER_URL`, `BROWSER_WORKER_URL`, and `PAYHERE_*` variables empty for local development.
+> **Note:** You can leave `GOOGLE_CLOUD_PROJECT` and `PAYHERE_*` variables empty for local development.
 
 ---
 
@@ -113,7 +114,7 @@ docker-compose up -d
 
 This will start:
 - **Gateway API** → `http://localhost:8080`
-- **HTTP Worker** → `http://localhost:8081`
+- **SDK Worker** → `http://localhost:8081`
 - **Frontend** → `http://localhost:3000`
 
 **First run may take a few minutes** as Docker builds the images and installs dependencies.
@@ -122,11 +123,11 @@ This will start:
 
 ## Step 6: Install Playwright Browsers (Optional)
 
-The browser worker requires Playwright browsers. Install them:
+The SDK worker uses Playwright CLI for browser automation. Install browsers:
 
 ```bash
 # From project root
-docker-compose exec frontend npx playwright install --with-deps
+docker-compose exec sdk-worker playwright-cli install chromium
 ```
 
 ---
@@ -138,6 +139,9 @@ Check each service:
 ```bash
 # Gateway health
 curl http://localhost:8080/api/v1/health
+
+# SDK Worker health
+curl http://localhost:8081/health
 
 # Frontend
 open http://localhost:3000
@@ -168,6 +172,15 @@ pip install -r requirements.txt
 uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
+**SDK Worker:**
+```bash
+# Install Python dependencies
+pip install -r requirements.txt
+
+# Run SDK worker
+uvicorn workers.sdk_worker:app --host 0.0.0.0 --port 8081 --reload
+```
+
 ### Viewing Logs
 
 ```bash
@@ -176,6 +189,7 @@ docker-compose logs -f
 
 # Specific service
 docker-compose logs -f gateway
+docker-compose logs -f sdk-worker
 docker-compose logs -f frontend
 ```
 
@@ -226,6 +240,7 @@ docker-compose up -d --build
 
 # Enter a container shell
 docker-compose exec gateway sh
+docker-compose exec sdk-worker sh
 docker-compose exec frontend sh
 
 # Install new Python dependencies
@@ -248,10 +263,14 @@ cd frontend && npm install <package>
 ## Project Structure
 
 ```
-nashville/
-├── api/              # FastAPI gateway
+seo-pro/
+├── .claude/           # Skills and Agents (loaded by SDK)
+│   ├── skills/        # SEO skills (audit, page, schema, etc.)
+│   └── agents/        # Subagents (technical, content, visual, etc.)
+├── api/               # FastAPI gateway
 ├── workers/           # Background workers
-├── orchestrator/      # Task orchestration
+│   └── sdk_worker.py  # Unified SDK worker
+├── scripts/           # Python utilities (called via Bash)
 ├── frontend/          # Next.js web app
 ├── supabase/          # Database migrations
 ├── deploy/            # Dockerfiles

@@ -38,12 +38,8 @@ try:
         # PayHere integration has been removed - we will integrate a new IPG when ready
         DEV_MODE: bool = True  # When True, skips payment and gives unlimited access
 
-        # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-
-        # Orchestrator
-        ORCHESTRATOR_URL: Optional[str] = None
+        # Workers (unified SDK worker - REQUIRED in production)
+        SDK_WORKER_URL: Optional[str] = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -138,12 +134,8 @@ except ImportError:
         # PayHere integration has been removed - we will integrate a new IPG when ready
         DEV_MODE: bool = True  # When True, skips payment and gives unlimited access
 
-        # Workers
-        HTTP_WORKER_URL: Optional[str] = None
-        BROWSER_WORKER_URL: Optional[str] = None
-
-        # Orchestrator
-        ORCHESTRATOR_URL: Optional[str] = None
+        # Workers (unified SDK worker - REQUIRED in production)
+        SDK_WORKER_URL: Optional[str] = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str
@@ -240,8 +232,7 @@ def validate_required_settings() -> None:
 
         # Workers are required in production
         required_vars.update({
-            "HTTP_WORKER_URL": "HTTP worker URL for task execution",
-            "BROWSER_WORKER_URL": "Browser worker URL for visual analysis",
+            "SDK_WORKER_URL": "SDK worker URL for unified analysis",
         })
 
     # Validate
