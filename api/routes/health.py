@@ -78,3 +78,41 @@ async def invalidate_jwks_cache_endpoint(request: Request):
     await invalidate_jwks_cache()
 
     return {"status": "ok", "message": "JWKS cache invalidated"}
+
+
+@router.post("/internal/cleanup/expired-quotes")
+async def cleanup_expired_quotes_endpoint(request: Request):
+    """
+    Clean up expired pending audit quotes.
+
+    This endpoint is designed to be called by Cloud Scheduler or similar
+    cron systems. It removes all pending_audits that have expired.
+
+    Security: This endpoint is protected by internal secret.
+
+    Recommended schedule: Every hour (0 * * * *)
+    """
+    await get_internal_secret(request)
+
+    supabase = get_supabase_client()
+
+    try:
+        result = supabase.rpc(
+            "cleanup_expired_quotes_with_stats",
+            {}
+        ).execute()
+
+        if result.data:
+            return {
+                "status": "ok",
+                "deleted_count": result.data.get("deleted_count", 0),
+                "cleaned_at": result.data.get("cleaned_at"),
+            }
+
+        return {"status": "ok", "deleted_count": 0, "message": "No expired quotes found"}
+
+    except Exception as e:
+        return JSONResponse(
+            content={"status": "error", "message": str(e)},
+            status_code=500,
+        )

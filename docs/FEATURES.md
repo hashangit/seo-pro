@@ -16,11 +16,21 @@ SEO Pro operates in two modes:
 
 ### Credit System
 - **Credit-Based Pricing**: $1 = 8 credits
+- **Manual Payment Flow**: Request credits via Wise/Bank transfer with admin approval
+- **Invoice Generation**: Automatic invoice numbers for each credit request
+- **Payment Proof Upload**: Users upload payment confirmation for admin review
 - **Real-Time Balance Tracking**: Live credit balance updates
 - **Transaction History**: Complete audit trail of all credit activity
 - **Atomic Credit Operations**: Race-condition-safe credit deduction
 - **Never-Expiring Credits**: Purchase once, use anytime
 - **Dev Mode**: Unlimited access for development/testing
+
+### Email Notifications
+- **Credit Request Confirmation**: Sent when user requests credits
+- **Payment Proof Notification**: Alerts admins when proof is uploaded
+- **Credit Approval Notification**: Informs user when credits are added
+- **Credit Rejection Notification**: Informs user with reason for rejection
+- **SendGrid Integration**: Reliable email delivery
 
 ### Analysis Modes
 
@@ -37,7 +47,16 @@ SEO Pro operates in two modes:
 - **Real-Time Progress**: Live status updates during analysis
 - **Analysis History**: Filterable list of past analyses
 - **Detailed Results View**: Comprehensive breakdown with scores, issues, and recommendations
-- **Credit Purchase Flow**: Streamlined top-up experience
+- **Credit Purchase Flow**: Request credits with invoice generation
+- **Credit Requests Page**: Track status of pending credit requests
+- **Admin Dashboard**: Manage credit requests at `/admin/credits`
+
+### Admin Features
+- **Credit Request Management**: View all credit requests with status filtering
+- **Payment Proof Review**: View uploaded payment confirmations
+- **One-Click Approval**: Add credits to user accounts with confirmation
+- **Rejection with Reason**: Reject requests with required explanation
+- **Email Notifications**: Automatic emails for approvals and rejections
 
 ---
 
@@ -192,6 +211,14 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 ### Credits
 - `GET /api/v1/credits/balance` - Current credit balance
 - `GET /api/v1/credits/history` - Transaction history
+- `POST /api/v1/credits/requests` - Request credit purchase
+- `GET /api/v1/credits/requests` - List user's credit requests
+- `POST /api/v1/credits/requests/{id}/proof` - Upload payment proof
+
+### Admin
+- `GET /api/v1/admin/credits/requests` - List all credit requests
+- `POST /api/v1/admin/credits/requests/{id}/approve` - Approve request
+- `POST /api/v1/admin/credits/requests/{id}/reject` - Reject request
 
 ### Audits
 - `POST /api/v1/audit/discover` - Discover site URLs
@@ -227,11 +254,11 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 - `users` - User profiles and credit balances
 - `organizations` - Multi-tenant structure
 - `credit_transactions` - Complete audit trail
+- `credit_requests` - Manual payment flow tracking
 - `analyses` - Individual analysis tracking
 - `audits` - Full site audit management
 - `audit_tasks` - Subagent progress tracking
-- `pending_audits` - Quote management
-- `cached_pages` - 24-hour TTL cache
+- `pending_audits` - Quote management with expiry
 
 ---
 
@@ -265,7 +292,11 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 | `MAX_PAGES` | Site audit page limit (500 max) |
 | `SDK_WORKER_URL` | URL for the SDK worker service |
 | `ENVIRONMENT` | deployment, production, or staging |
+| `ADMIN_EMAILS` | Comma-separated admin email addresses |
+| `SENDGRID_API_KEY` | SendGrid API key for emails |
+| `SENDGRID_FROM_EMAIL` | Sender email address |
+| `SENDGRID_FROM_NAME` | Sender display name |
 
 ---
 
-*Last updated: February 26, 2026*
+*Last updated: February 28, 2026*

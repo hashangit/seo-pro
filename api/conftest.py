@@ -21,8 +21,8 @@ def override_settings(monkeypatch):
     def mock_getenv(key, default=None):
         if key == "SUPABASE_URL":
             return "https://test.supabase.co"
-        elif key == "SUPABASE_SERVICE_KEY":
-            return "test-service-key"
+        elif key == "SUPABASE_SECRET_KEY":
+            return "test-secret-key"
         elif key == "WORKOS_AUDIENCE" or key == "WORKOS_ISSUER":
             return "api.workos.com"
         elif key == "SDK_WORKER_URL":
@@ -58,7 +58,6 @@ async def test_user():
         "first_name": "Test",
         "last_name": "User",
         "credits_balance": 100,
-        "plan_tier": "free",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "last_sync": "2024-01-01T00:00:00Z",
@@ -96,7 +95,7 @@ async def app_client(monkeypatch, test_user):
         lambda: Settings(
             ENVIRONMENT="development",
             SUPABASE_URL="https://test.supabase.co",
-            SUPABASE_SERVICE_KEY="test-service-key",
+            SUPABASE_SECRET_KEY="test-secret-key",
             WORKOS_AUDIENCE="api.workos.com",
             WORKOS_ISSUER="api.workos.com",
             SDK_WORKER_URL="http://localhost:8003",
@@ -131,7 +130,7 @@ def get_test_settings():
     return Settings(
         ENVIRONMENT="development",
         SUPABASE_URL="https://test.supabase.co",
-        SUPABASE_SERVICE_KEY="test-service-key",
+        SUPABASE_SECRET_KEY="test-secret-key",
         WORKOS_AUDIENCE="api.workos.com",
         WORKOS_ISSUER="api.workos.com",
         SDK_WORKER_URL="http://localhost:8003",

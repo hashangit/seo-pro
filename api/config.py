@@ -25,7 +25,7 @@ try:
 
         # Supabase
         SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
-        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
+        SUPABASE_SECRET_KEY: str = Field(default="test-secret-key", description="Supabase secret key (server-side only)")
 
         # WorkOS
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
@@ -66,6 +66,26 @@ try:
         DEV_MODE: bool = Field(
             default=False,
             description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+        )
+
+        # Admin Configuration
+        ADMIN_EMAILS: str = Field(
+            default="",
+            description="Comma-separated list of admin email addresses"
+        )
+
+        # SendGrid Email Configuration
+        SENDGRID_API_KEY: str | None = Field(
+            default=None,
+            description="SendGrid API key for sending emails"
+        )
+        SENDGRID_FROM_EMAIL: str = Field(
+            default="noreply@seopro.example.com",
+            description="Email address to send from"
+        )
+        SENDGRID_FROM_NAME: str = Field(
+            default="SEO Pro",
+            description="Display name for sent emails"
         )
 
         model_config: SettingsConfigDict = {
@@ -145,7 +165,7 @@ except ImportError:
 
         # Supabase
         SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
-        SUPABASE_SERVICE_KEY: str = Field(default="test-service-key", description="Supabase service role key")
+        SUPABASE_SECRET_KEY: str = Field(default="test-secret-key", description="Supabase secret key (server-side only)")
 
         # WorkOS
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
@@ -186,6 +206,26 @@ except ImportError:
         DEV_MODE: bool = Field(
             default=False,
             description="Enable development mode (bypasses credit checks - NEVER enable in production)"
+        )
+
+        # Admin Configuration
+        ADMIN_EMAILS: str = Field(
+            default="",
+            description="Comma-separated list of admin email addresses"
+        )
+
+        # SendGrid Email Configuration
+        SENDGRID_API_KEY: str | None = Field(
+            default=None,
+            description="SendGrid API key for sending emails"
+        )
+        SENDGRID_FROM_EMAIL: str = Field(
+            default="noreply@seopro.example.com",
+            description="Email address to send from"
+        )
+        SENDGRID_FROM_NAME: str = Field(
+            default="SEO Pro",
+            description="Display name for sent emails"
         )
 
         class Config:
@@ -273,7 +313,7 @@ def validate_required_settings() -> None:
     if settings.is_production:
         required_vars = {
             "SUPABASE_URL": "Supabase project URL",
-            "SUPABASE_SERVICE_KEY": "Supabase service role key",
+            "SUPABASE_SECRET_KEY": "Supabase secret key (server-side only)",
             "WORKOS_AUDIENCE": "WorkOS audience for JWT validation",
             "WORKOS_ISSUER": "WorkOS issuer for JWT tokens",
             "WORKOS_CLIENT_ID": "WorkOS client ID",
@@ -302,7 +342,7 @@ def get_supabase_client():
     from supabase import create_client
 
     settings = get_settings()
-    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+    return create_client(settings.SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
 
 
 def get_database_url(setting_name: str) -> str:

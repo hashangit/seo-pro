@@ -4,9 +4,13 @@ Credit Service
 Handles credit calculations, deductions, and formatting.
 """
 
+import logging
+
 from fastapi import HTTPException
 
 from api.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # Credit pricing constants
 CREDITS_PER_DOLLAR = 8  # $1 = 8 credits
@@ -55,6 +59,10 @@ def format_cost_breakdown(page_count: int, credits: int) -> str:
     """Generate human-readable cost explanation for site audits."""
     settings = get_settings()
     if settings.DEV_MODE:
+        logger.warning(
+            "credit_bypass_dev_mode",
+            extra={"event": "cost_breakdown_bypass", "page_count": page_count, "credits": credits}
+        )
         return f"FREE in Dev Mode - {page_count} pages will be analyzed"
 
     cost_usd = credits / CREDITS_PER_DOLLAR
@@ -71,6 +79,10 @@ def format_page_audit_cost() -> str:
     """Generate cost explanation for full page audit."""
     settings = get_settings()
     if settings.DEV_MODE:
+        logger.warning(
+            "credit_bypass_dev_mode",
+            extra={"event": "page_audit_cost_bypass"}
+        )
         return "FREE in Dev Mode - Full page audit (all 12 analysis types)"
     return "Full page audit (all 12 analysis types): 8 credits ($1.00)"
 
@@ -79,6 +91,10 @@ def format_individual_report_cost(count: int = 1) -> str:
     """Generate cost explanation for individual reports."""
     settings = get_settings()
     if settings.DEV_MODE:
+        logger.warning(
+            "credit_bypass_dev_mode",
+            extra={"event": "individual_report_cost_bypass", "count": count}
+        )
         return f"FREE in Dev Mode - {count} individual report{'s' if count != 1 else ''}"
     cost_usd = count / CREDITS_PER_DOLLAR
     return f"{count} individual report{'s' if count != 1 else ''}: {count} credit{'s' if count != 1 else ''} (${cost_usd:.2f})"
@@ -94,6 +110,16 @@ async def deduct_analysis_credits(
     """
     settings = get_settings()
     if settings.DEV_MODE:
+        logger.warning(
+            "credit_bypass_dev_mode",
+            extra={
+                "event": "deduct_bypass",
+                "user_id": user_id,
+                "credits": credits,
+                "analysis_type": analysis_type,
+                "url": url
+            }
+        )
         return True
 
     try:

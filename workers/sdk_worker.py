@@ -65,7 +65,7 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
     from supabase import create_client
 
     supabase_url = os.getenv("SUPABASE_URL")
-    supabase_key = os.getenv("SUPABASE_SERVICE_KEY")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
 
     if not supabase_url or not supabase_key:
         print("Warning: Supabase credentials not configured")
@@ -76,10 +76,16 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            update_data: dict[str, Any] = {"status": status, "updated_at": "now()"}
+            # updated_at is handled automatically by DB trigger
+            update_data: dict[str, Any] = {"status": status}
 
             if results is not None:
-                update_data["results_json"] = results
+                update_data["result_json"] = results
+
+            # Set completed_at for terminal states
+            if status in ("completed", "failed"):
+                from datetime import datetime
+                update_data["completed_at"] = datetime.utcnow().isoformat()
 
             supabase.table("audit_tasks").update(update_data).eq("id", task_id).execute()
             return

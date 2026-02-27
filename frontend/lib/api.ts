@@ -225,7 +225,6 @@ export interface CreditTransaction {
   transaction_type: "purchase" | "spend" | "refund" | "bonus";
   reference_id: string | null;
   reference_type: string | null;
-  payment_id: string | null;
   description: string | null;
   created_at: string;
 }
@@ -553,3 +552,145 @@ export const CREDIT_PRICING = {
   SITE_AUDIT_PER_PAGE: 7, // 7 credits per page for site audits
   MINIMUM_TOPUP_DOLLARS: 8, // Minimum topup: $8
 } as const;
+
+// ============================================================================
+// Credit Request API (Manual Payment Flow)
+// ============================================================================
+
+export interface CreditRequestCreate {
+  credits: number;
+  notes?: string;
+}
+
+export interface CreditRequestResponse {
+  id: string;
+  user_id: string;
+  credits_requested: number;
+  amount: number;
+  currency: string;
+  status: "pending" | "invoice_sent" | "proof_uploaded" | "approved" | "rejected";
+  invoice_number: string | null;
+  invoice_url: string | null;
+  payment_proof_url: string | null;
+  payment_notes: string | null;
+  admin_notes: string | null;
+  reviewed_by: string | null;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+export interface CreditRequestListResponse {
+  requests: CreditRequestResponse[];
+  total: number;
+}
+
+export interface PaymentProofUpload {
+  proof_url: string;
+  notes?: string;
+}
+
+export interface AdminApproval {
+  admin_notes?: string;
+}
+
+export interface AdminRejection {
+  reason: string;
+}
+
+/**
+ * Request to purchase credits
+ */
+export async function createCreditRequest(
+  request: CreditRequestCreate,
+  token?: string
+): Promise<CreditRequestResponse> {
+  return apiRequest<CreditRequestResponse>("/api/v1/credits/requests", {
+    method: "POST",
+    body: JSON.stringify(request),
+  }, token);
+}
+
+/**
+ * Get user's credit requests
+ */
+export async function getCreditRequests(
+  limit: number = 50,
+  offset: number = 0,
+  token?: string
+): Promise<CreditRequestListResponse> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  return apiRequest<CreditRequestListResponse>(`/api/v1/credits/requests?${params}`, {}, token);
+}
+
+/**
+ * Get a specific credit request
+ */
+export async function getCreditRequest(
+  requestId: string,
+  token?: string
+): Promise<CreditRequestResponse> {
+  return apiRequest<CreditRequestResponse>(`/api/v1/credits/requests/${requestId}`, {}, token);
+}
+
+/**
+ * Submit payment proof for a credit request
+ */
+export async function submitPaymentProof(
+  requestId: string,
+  proof: PaymentProofUpload,
+  token?: string
+): Promise<CreditRequestResponse> {
+  return apiRequest<CreditRequestResponse>(`/api/v1/credits/requests/${requestId}/proof`, {
+    method: "POST",
+    body: JSON.stringify(proof),
+  }, token);
+}
+
+/**
+ * Admin: Get all credit requests
+ */
+export async function adminGetCreditRequests(
+  status?: string,
+  limit: number = 50,
+  offset: number = 0,
+  token?: string
+): Promise<CreditRequestListResponse> {
+  const params = new URLSearchParams({
+    limit: limit.toString(),
+    offset: offset.toString(),
+  });
+  if (status) params.set("status", status);
+  return apiRequest<CreditRequestListResponse>(`/api/v1/admin/credits/requests?${params}`, {}, token);
+}
+
+/**
+ * Admin: Approve a credit request
+ */
+export async function adminApproveCreditRequest(
+  requestId: string,
+  approval: AdminApproval,
+  token?: string
+): Promise<CreditRequestResponse> {
+  return apiRequest<CreditRequestResponse>(`/api/v1/admin/credits/requests/${requestId}/approve`, {
+    method: "POST",
+    body: JSON.stringify(approval),
+  }, token);
+}
+
+/**
+ * Admin: Reject a credit request
+ */
+export async function adminRejectCreditRequest(
+  requestId: string,
+  rejection: AdminRejection,
+  token?: string
+): Promise<CreditRequestResponse> {
+  return apiRequest<CreditRequestResponse>(`/api/v1/admin/credits/requests/${requestId}/reject`, {
+    method: "POST",
+    body: JSON.stringify(rejection),
+  }, token);
+}

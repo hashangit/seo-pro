@@ -5,6 +5,131 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-28
+
+### Added - Manual Payment Flow
+
+This release replaces the PayHere payment gateway (Sri Lanka-only) with a manual payment flow supporting international payments via Wise/Bank transfer.
+
+#### Credit Request System
+- **Manual Payment Flow**: Users request credits, receive invoice, upload payment proof
+- **Invoice Generation**: Automatic unique invoice numbers (format: `INV-YYYYMMDD-XXXXXX`)
+- **Payment Proof Upload**: Users upload payment confirmations for admin review
+- **Status Tracking**: `pending` → `proof_uploaded` → `approved`/`rejected`
+- **Credit Request History**: View all past requests at `/credits/requests`
+
+#### Admin Dashboard
+- **Admin Credit Management**: New `/admin/credits` page for managing requests
+- **Status Filtering**: Filter by pending, proof_uploaded, approved, rejected
+- **One-Click Approval**: Add credits to user balance with confirmation
+- **Rejection with Reason**: Required reason field for transparency
+- **Admin Access Control**: Email-based admin verification via `ADMIN_EMAILS` env var
+
+#### Email Notifications (SendGrid)
+- **Credit Request Confirmation**: Sent to user when request is created
+- **Payment Proof Notification**: Sent to admins when proof is uploaded
+- **Credit Approval Notification**: Sent to user when credits are added
+- **Credit Rejection Notification**: Sent to user with rejection reason
+- **HTML Email Templates**: Professional branded email templates
+
+### Added - Analysis Tracking
+
+- **Analysis Records**: Individual analyses now tracked in `analyses` table
+- **Status Tracking**: `pending` → `processing` → `completed`/`failed`
+- **Credits Used**: Records credits consumed per analysis
+- **Error Tracking**: Failed analyses record error messages
+
+### Added - API Endpoints
+
+#### Credit Requests
+- `POST /api/v1/credits/requests` - Create credit request
+- `GET /api/v1/credits/requests` - List user's requests
+- `GET /api/v1/credits/requests/{id}` - Get specific request
+- `POST /api/v1/credits/requests/{id}/proof` - Upload payment proof
+
+#### Admin
+- `GET /api/v1/admin/credits/requests` - List all credit requests
+- `GET /api/v1/admin/credits/requests/{id}` - Get specific request
+- `POST /api/v1/admin/credits/requests/{id}/approve` - Approve request
+- `POST /api/v1/admin/credits/requests/{id}/reject` - Reject request
+- `POST /api/v1/admin/credits/cleanup/expired-quotes` - Clean expired quotes
+
+#### Internal
+- `POST /api/v1/internal/cleanup/expired-quotes` - Scheduled cleanup endpoint
+
+### Changed - Infrastructure
+
+#### Environment Variables (Renamed)
+- `SUPABASE_SERVICE_KEY` → `SUPABASE_SECRET_KEY` (clearer naming)
+- `SUPABASE_ANON_KEY` → `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` (clearer naming)
+
+#### Structured Logging
+- Replaced all `print()` statements with Python `logging` module
+- Structured log format with `extra` fields for context
+- Better observability in Cloud Run logs
+
+#### Worker Reliability
+- Added retry logic with exponential backoff for worker calls
+- Uses `tenacity` library for connection failure retries
+- Max 3 attempts with 1-10 second backoff
+
+#### CORS Security
+- Restricted from `allow_methods=["*"]` to explicit method list
+- Restricted from `allow_headers=["*"]` to explicit header list
+
+#### Frontend
+- Added automatic token refresh every minute in `useAuth` hook
+- Updated purchase credits component for manual payment flow
+- Added credit requests page with status tracking
+
+### Changed - Database Schema
+
+#### New Tables
+- `credit_requests` - Manual payment flow tracking
+- `analyses` - Individual analysis tracking with status
+
+#### Removed Tables/Columns
+- `plan_tier` column from `users` (simplified pricing)
+- `payment_id` column from `credit_transactions` (PayHere-specific)
+- `credits` table (redundant with credit_transactions)
+- `pending_orders` table (PayHere-specific)
+- `audit_pages` table (not used)
+- `cached_pages` table (not used)
+
+#### New Functions
+- `cleanup_expired_quotes()` - Delete expired pending audits
+- `cleanup_expired_quotes_with_stats()` - Returns deletion stats
+- `create_analysis_record()` - Create analysis with status
+- `update_analysis_record()` - Update analysis status/results
+- `refund_credits()` - Dedicated refund function
+
+### Added - Configuration
+
+| Setting | Description |
+|---------|-------------|
+| `ADMIN_EMAILS` | Comma-separated admin email addresses |
+| `SENDGRID_API_KEY` | SendGrid API key for email delivery |
+| `SENDGRID_FROM_EMAIL` | Verified sender email address |
+| `SENDGRID_FROM_NAME` | Display name for sent emails |
+
+### Added - Dependencies
+
+- `sendgrid>=6.9.0` - Email delivery
+- `tenacity>=8.2.0` - Retry logic
+
+### Added - Documentation
+
+- Updated `docs/DEPLOYMENT.md` with SendGrid setup and manual payment flow
+- Updated `docs/TODO.md` with infrastructure improvements
+
+### Removed
+
+- `api/routes/audit.py` - Empty placeholder file
+- `supabase/migrations/002_analysis_tracking.sql` - Merged into 001
+- `supabase/migrations/003_refund_credits_function.sql` - Merged into 001
+
+---
+
 ## [2.0.0] - 2026-02-26
 
 ### Added - SaaS Platform (MAJOR)
