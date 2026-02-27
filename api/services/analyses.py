@@ -4,6 +4,7 @@ Analysis Service
 Handles individual and batch analysis execution via worker proxy.
 """
 
+import json
 import logging
 
 import httpx
@@ -117,7 +118,6 @@ async def _update_analysis_record(
 ) -> bool:
     """Update an analysis record with results."""
     try:
-        import json
         result = supabase.rpc(
             "update_analysis_record",
             {

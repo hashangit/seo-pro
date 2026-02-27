@@ -7,6 +7,7 @@ Admin endpoints for managing credit requests.
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 
+from api.config import get_settings
 from api.core.dependencies import get_current_user
 from api.models.credit_requests import (
     CreditRequestResponse,
@@ -31,13 +32,11 @@ def verify_admin_user(user: dict) -> None:
     For now, this checks for a specific email or org.
     TODO: Implement proper role-based access control.
     """
-    # Check if user email is in admin list (from env or config)
-    from api.config import get_settings
     settings = get_settings()
 
     # For MVP, we'll use a simple email check
     # In production, this should use proper RBAC
-    admin_emails = getattr(settings, 'ADMIN_EMAILS', '').split(',') if hasattr(settings, 'ADMIN_EMAILS') else []
+    admin_emails = [e.strip() for e in settings.ADMIN_EMAILS.split(",") if e.strip()]
 
     if user.get('email') not in admin_emails:
         raise HTTPException(
@@ -121,7 +120,6 @@ async def get_credit_request_admin(
     """Get a specific credit request (admin only)."""
     verify_admin_user(user)
 
-    from api.services.supabase import get_supabase_client
     supabase = get_supabase_client()
 
     result = (

@@ -4,7 +4,7 @@ Credit Request Routes
 Handles the manual payment flow for credit purchases.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 
 from api.core.dependencies import get_current_user
 from api.models.credit_requests import (
@@ -18,6 +18,7 @@ from api.services.credit_requests import (
     get_user_credit_requests,
     upload_payment_proof,
 )
+from api.services.supabase import get_supabase_client
 
 router = APIRouter(prefix="/api/v1/credits/requests", tags=["Credit Requests"])
 
@@ -88,8 +89,6 @@ async def get_credit_request(
     user: dict = Depends(get_current_user)
 ):
     """Get a specific credit request."""
-    from api.services.supabase import get_supabase_client
-
     supabase = get_supabase_client()
     result = (
         supabase.table("credit_requests")
@@ -100,7 +99,6 @@ async def get_credit_request(
     )
 
     if not result.data:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Credit request not found")
 
     return CreditRequestResponse(**result.data[0])
