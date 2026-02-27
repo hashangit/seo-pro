@@ -7,11 +7,23 @@ Deployed on Cloud Run with scale-to-zero (min_instances=0).
 This is the main entry point that assembles all modular components.
 """
 
+import logging
+import sys
+
 import uvicorn
+
+# Configure structured logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger(__name__)
 
 # Import app factory
 from api.core.app import create_app
-from api.routes import analyses, audits, credits, health
+from api.routes import analyses, audits, credits, credit_requests, health
+from api.routes.admin import credits as admin_credits
 from api.services.auth import get_jwks
 
 # Import services for startup
@@ -47,6 +59,8 @@ app = create_app()
 
 app.include_router(health.router)
 app.include_router(credits.router)
+app.include_router(credit_requests.router)
+app.include_router(admin_credits.router)
 app.include_router(audits.router)
 app.include_router(analyses.router)
 
@@ -60,28 +74,25 @@ async def startup_event():
     """Initialize services on startup."""
     # DEV MODE warning for production/staging
     if settings.DEV_MODE and settings.ENVIRONMENT in ["production", "staging"]:
-        print("=" * 70)
-        print(
-            f"⚠️  WARNING: DEV_MODE is enabled in {settings.ENVIRONMENT.upper()} environment!"
+        logger.critical(
+            "dev_mode_enabled_in_production",
+            extra={"environment": settings.ENVIRONMENT}
         )
-        print("⚠️  All credit checks are BYPASSED - users have unlimited access!")
-        print("⚠️  Set DEV_MODE=false before production deployment!")
-        print("=" * 70)
 
     # Prefetch JWKS to avoid cold-start delay
     try:
         await get_jwks()
-        print("JWKS fetched successfully at startup")
+        logger.info("jwks_prefetched", extra={"event": "startup"})
     except Exception as e:
-        print(f"Warning: Failed to prefetch JWKS: {e}")
+        logger.warning("jwks_prefetch_failed", extra={"error": str(e)})
 
     # Validate Supabase connection
     try:
         supabase = get_supabase_client()
         supabase.table("users").select("*").limit(1).execute()
-        print("Supabase connection validated")
+        logger.info("supabase_connection_validated", extra={"event": "startup"})
     except Exception as e:
-        print(f"Error: Failed to connect to Supabase: {e}")
+        logger.error("supabase_connection_failed", extra={"error": str(e)})
 
 
 @app.on_event("shutdown")

@@ -44,8 +44,8 @@ ORCHESTRATOR_URL = os.getenv("ORCHESTRATOR_URL")
 
 # Supabase
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_SERVICE_KEY = os.getenv("SUPABASE_SERVICE_KEY")
-supabase = create_client(SUPABASE_URL, SUPABASE_SERVICE_KEY)
+SUPABASE_SECRET_KEY = os.getenv("SUPABASE_SECRET_KEY")
+supabase = create_client(SUPABASE_URL, SUPABASE_SECRET_KEY)
 
 # Task timeout configuration
 TASK_TIMEOUT_SECONDS = int(os.getenv("TASK_TIMEOUT_SECONDS", "300"))

@@ -7,6 +7,7 @@
 
 "use client";
 
+import { useEffect, useRef, useCallback } from "react";
 import { useAuth as useAuthKit, AuthKitProvider } from "@workos-inc/authkit-react";
 
 // Re-export AuthKitProvider for app setup
@@ -44,6 +45,7 @@ export interface AuthState {
  *
  * This hook wraps the WorkOS AuthKit useAuth hook and provides
  * a simplified interface for the application.
+ * Includes automatic token refresh before expiration.
  *
  * @example
  * ```tsx
@@ -59,6 +61,7 @@ export interface AuthState {
  */
 export function useAuth(): AuthState {
   const auth = useAuthKit();
+  const refreshIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const user: WorkOSUser | null = auth.user ? {
     id: auth.user.id,
@@ -67,6 +70,34 @@ export function useAuth(): AuthState {
     lastName: auth.user.lastName ?? undefined,
     organizationId: auth.organizationId ?? undefined,
   } : null;
+
+  // Token refresh logic - checks every minute and refreshes if needed
+  const checkAndRefreshToken = useCallback(async () => {
+    if (!auth.user) return;
+
+    try {
+      // WorkOS AuthKit handles token refresh automatically when getAccessToken is called
+      // This proactively refreshes to prevent expiration during user activity
+      await auth.getAccessToken();
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      // If refresh fails, the user will be redirected to login on next API call
+    }
+  }, [auth]);
+
+  // Set up token refresh interval
+  useEffect(() => {
+    if (auth.user) {
+      // Check token every minute
+      refreshIntervalRef.current = setInterval(checkAndRefreshToken, 60000);
+
+      return () => {
+        if (refreshIntervalRef.current) {
+          clearInterval(refreshIntervalRef.current);
+        }
+      };
+    }
+  }, [auth.user, checkAndRefreshToken]);
 
   return {
     user,

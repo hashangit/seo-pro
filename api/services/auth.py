@@ -5,6 +5,7 @@ Handles JWKS caching, token verification, and user synchronization.
 """
 
 import asyncio
+import logging
 from datetime import datetime, timedelta
 
 import httpx
@@ -13,6 +14,8 @@ from jose import jwt
 from jose.exceptions import ExpiredSignatureError, JWTError
 
 from api.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 # Global state with thread-safe locking
 _jwks_cache: dict | None = None
@@ -63,7 +66,7 @@ async def invalidate_jwks_cache() -> None:
     async with _jwks_lock:
         _jwks_cache = None
         _jwks_cache_time = None
-        print("JWKS cache invalidated")
+        logger.info("jwks_cache_invalidated", extra={"event": "cache_invalidation"})
 
 
 async def verify_token(token: str) -> dict:
@@ -104,10 +107,14 @@ async def verify_token(token: str) -> dict:
         return payload
 
     except ExpiredSignatureError:
+        logger.warning("jwt_expired", extra={"event": "auth_failure", "reason": "token_expired"})
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token has expired")
     except JWTError as e:
         # Log detailed error server-side, return generic message to client
-        print(f"JWT validation error: {str(e)}")  # Server-side logging only
+        logger.error(
+            "jwt_validation_error",
+            extra={"event": "auth_failure", "reason": str(e)}
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid authentication token"
         )
@@ -134,7 +141,6 @@ async def sync_user_to_supabase(workos_user: dict, supabase) -> dict:
         "first_name": workos_user.get("given_name"),
         "last_name": workos_user.get("family_name"),
         "credits_balance": 0,
-        "plan_tier": "free",
         "last_sync": datetime.utcnow().isoformat(),
     }
 

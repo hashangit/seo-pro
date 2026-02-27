@@ -119,7 +119,7 @@ export default function CreditsPage() {
           </div>
         </div>
 
-        <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="mb-6 grid gap-4 md:grid-cols-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Total Purchased</CardTitle>
@@ -142,11 +142,21 @@ export default function CreditsPage() {
           </Card>
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium">Actions</CardTitle>
+              <CardTitle className="text-sm font-medium">Buy Credits</CardTitle>
             </CardHeader>
             <CardContent>
-              <Link href="/credits/purchase">
-                <Button className="w-full">Buy Credits</Button>
+              <Link href="/credits">
+                <Button className="w-full">Purchase</Button>
+              </Link>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Requests</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Link href="/credits/requests">
+                <Button variant="outline" className="w-full">View Requests</Button>
               </Link>
             </CardContent>
           </Card>

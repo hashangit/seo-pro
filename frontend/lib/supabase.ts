@@ -8,9 +8,9 @@
 import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+const supabasePublishableKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabasePublishableKey);
 
 /**
  * Database types
@@ -25,7 +25,6 @@ export interface User {
   city: string | null;
   organization_id: string | null;
   credits_balance: number;
-  plan_tier: string;
   created_at: string;
   updated_at: string;
   last_sync: string;

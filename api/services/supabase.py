@@ -17,7 +17,7 @@ def get_supabase_client():
         from supabase import create_client
 
         settings = get_settings()
-        _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SERVICE_KEY)
+        _supabase_client = create_client(settings.SUPABASE_URL, settings.SUPABASE_SECRET_KEY)
     return _supabase_client
 
 

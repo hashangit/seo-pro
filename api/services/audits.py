@@ -4,6 +4,7 @@ Audit Service
 Handles audit estimation, execution, and orchestration.
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from fastapi import HTTPException
@@ -11,6 +12,8 @@ from fastapi import HTTPException
 from api.services.cloud_tasks import submit_audit_to_orchestrator
 from api.services.supabase import get_supabase_client
 from api.config import get_settings
+
+logger = logging.getLogger(__name__)
 
 
 async def create_pending_quote(
@@ -128,10 +131,10 @@ async def refund_credits(user_id: str, amount: int, reference_id: str, reason: s
                 "p_description": reason,
             },
         ).execute()
-        print(f"Refunded {amount} credits to user {user_id}")
+        logger.info("credits_refunded", extra={"user_id": user_id, "amount": amount, "reference_id": reference_id})
         return True
     except Exception as refund_error:
-        print(f"CRITICAL: Failed to refund credits: {refund_error}")
+        logger.error("refund_failed", extra={"user_id": user_id, "amount": amount, "error": str(refund_error)})
         return False
 
 
@@ -186,6 +189,14 @@ async def run_audit_with_quote(
 
     # DEV MODE: Skip payment and credit checks
     if settings.DEV_MODE:
+        logger.warning(
+            "credit_bypass_dev_mode",
+            extra={
+                "event": "audit_bypass",
+                "user_id": user_id,
+                "quote_id": quote_id
+            }
+        )
         return await _run_audit_dev_mode(quote_id, user_id, selected_urls)
 
     # PRODUCTION MODE: Normal credit flow
@@ -233,7 +244,7 @@ async def run_audit_with_quote(
         )
     except Exception as e:
         # CRITICAL: Refund credits when task submission fails
-        print(f"Error: Failed to submit tasks: {e}")
+        logger.error("task_submission_failed", extra={"audit_id": audit_id, "error": str(e)})
 
         # Attempt to refund credits
         await refund_credits(
@@ -299,7 +310,7 @@ async def _run_audit_dev_mode(
             page_urls=page_urls,
         )
     except Exception as e:
-        print(f"Warning: Failed to submit tasks: {e}")
+        logger.warning("dev_mode_task_submission_failed", extra={"audit_id": audit_id, "error": str(e)})
 
     # Mark quote as completed
     supabase.table("pending_audits").update({"status": "completed"}).eq("id", quote_id).execute()
