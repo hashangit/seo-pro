@@ -46,7 +46,6 @@ async def create_credit_request(
     Sends confirmation email to user.
     """
     supabase = get_supabase_client()
-    settings = get_settings()
 
     # Calculate amount
     amount = calculate_credit_cost(credits)

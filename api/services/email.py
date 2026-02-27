@@ -5,7 +5,6 @@ Handles sending emails via SendGrid.
 """
 
 import logging
-from typing import Optional
 
 from api.config import get_settings
 
@@ -38,7 +37,7 @@ class EmailService:
         to_email: str,
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None
+        text_content: str | None = None
     ) -> dict:
         """Build email payload for SendGrid API."""
         return {
@@ -77,7 +76,7 @@ class EmailService:
         to_email: str,
         subject: str,
         html_content: str,
-        text_content: Optional[str] = None
+        text_content: str | None = None
     ) -> bool:
         """
         Send an email via SendGrid.
@@ -102,8 +101,6 @@ class EmailService:
             return False
 
         try:
-            from python_http_client import exceptions
-
             payload = self._build_email(to_email, subject, html_content, text_content)
             response = self.client.client.mail.send.post(request_body=payload)
 

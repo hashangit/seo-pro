@@ -21,16 +21,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # Import app factory
-from api.core.app import create_app
-from api.routes import analyses, audits, credits, credit_requests, health
-from api.routes.admin import credits as admin_credits
-from api.services.auth import get_jwks
+from api.core.app import create_app  # noqa: E402
+from api.routes import analyses, audits, credits, credit_requests, health  # noqa: E402
+from api.routes.admin import credits as admin_credits  # noqa: E402
+from api.services.auth import get_jwks  # noqa: E402
 
 # Import services for startup
-from api.services.supabase import get_supabase_client, reset_supabase_client
+from api.services.supabase import get_supabase_client, reset_supabase_client  # noqa: E402
 
 # Import centralized configuration
-from api.config import get_settings, validate_required_settings
+from api.config import get_settings, validate_required_settings  # noqa: E402
 
 # ============================================================================
 # Environment Variable Validation

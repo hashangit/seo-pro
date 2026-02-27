@@ -6,7 +6,6 @@ Pydantic models for the manual payment flow.
 
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
 
 from pydantic import BaseModel, Field
 
@@ -14,7 +13,7 @@ from pydantic import BaseModel, Field
 class CreditRequestCreate(BaseModel):
     """Request to purchase credits."""
     credits: int = Field(..., gt=0, description="Number of credits to purchase")
-    notes: Optional[str] = Field(None, max_length=500, description="Optional notes")
+    notes: str | None = Field(None, max_length=500, description="Optional notes")
 
 
 class CreditRequestResponse(BaseModel):
@@ -25,15 +24,15 @@ class CreditRequestResponse(BaseModel):
     amount: Decimal
     currency: str
     status: str
-    invoice_number: Optional[str] = None
-    invoice_url: Optional[str] = None
-    payment_proof_url: Optional[str] = None
-    payment_notes: Optional[str] = None
-    admin_notes: Optional[str] = None
-    reviewed_by: Optional[str] = None
-    reviewed_at: Optional[datetime] = None
+    invoice_number: str | None = None
+    invoice_url: str | None = None
+    payment_proof_url: str | None = None
+    payment_notes: str | None = None
+    admin_notes: str | None = None
+    reviewed_by: str | None = None
+    reviewed_at: datetime | None = None
     created_at: datetime
-    updated_at: Optional[datetime] = None
+    updated_at: datetime | None = None
 
 
 class CreditRequestListResponse(BaseModel):
@@ -45,12 +44,12 @@ class CreditRequestListResponse(BaseModel):
 class PaymentProofUpload(BaseModel):
     """Upload payment proof for a credit request."""
     proof_url: str = Field(..., description="URL to the payment proof file")
-    notes: Optional[str] = Field(None, max_length=500, description="Payment notes")
+    notes: str | None = Field(None, max_length=500, description="Payment notes")
 
 
 class AdminApproval(BaseModel):
     """Admin approval for credit request."""
-    admin_notes: Optional[str] = Field(None, max_length=500, description="Admin notes")
+    admin_notes: str | None = Field(None, max_length=500, description="Admin notes")
 
 
 class AdminRejection(BaseModel):

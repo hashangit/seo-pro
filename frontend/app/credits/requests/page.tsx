@@ -40,7 +40,6 @@ const statusConfig = {
 
 export default function CreditRequestsPage() {
   const [requests, setRequests] = useState<CreditRequestResponse[]>([]);
-  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [isPending, startTransition] = useTransition();
   const [uploadDialogOpen, setUploadDialogOpen] = useState<string | null>(null);
@@ -51,7 +50,6 @@ export default function CreditRequestsPage() {
     try {
       const data = await getCreditRequests(50, 0);
       setRequests(data.requests || []);
-      setTotal(data.total || 0);
     } catch (err) {
       logger.error(LogContext.CREDITS, err);
     } finally {

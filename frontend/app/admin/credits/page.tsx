@@ -31,7 +31,6 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -79,6 +78,7 @@ export default function AdminCreditsPage() {
 
   useEffect(() => {
     startTransition(() => fetchRequests());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [statusFilter]);
 
   const handleApprove = async (requestId: string) => {
@@ -301,7 +301,7 @@ export default function AdminCreditsPage() {
                             <DialogHeader>
                               <DialogTitle>Approve Credit Request</DialogTitle>
                               <DialogDescription>
-                                This will add {request.credits_requested} credits to the user's account.
+                                This will add {request.credits_requested} credits to the user&apos;s account.
                               </DialogDescription>
                             </DialogHeader>
                             <div className="space-y-4">

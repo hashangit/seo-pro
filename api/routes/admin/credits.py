@@ -7,7 +7,7 @@ Admin endpoints for managing credit requests.
 from fastapi import APIRouter, Depends, Query, HTTPException
 from pydantic import BaseModel
 
-from api.core.dependencies import get_current_user, verify_internal_secret
+from api.core.dependencies import get_current_user
 from api.models.credit_requests import (
     CreditRequestResponse,
     CreditRequestListResponse,
