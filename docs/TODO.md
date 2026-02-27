@@ -73,6 +73,12 @@ Non-critical improvements identified during architectural assessment. None are b
   Requires: Scheduled job (Cloud Scheduler) or DB trigger to detect stale records.
   Impact: Prevents credits being locked indefinitely on stuck jobs.
 
+- [ ] **Use Jinja2 templates for email HTML** (Priority: Low)
+  Current: HTML email templates are hardcoded as large f-strings in `api/services/email.py`.
+  Recommendation: Use Jinja2 templating engine with separate `.html` template files.
+  Benefits: Better separation of concerns, easier maintenance, cleaner code.
+  Impact: Code maintainability. No functional impact.
+
 ### Frontend (Next.js/TypeScript)
 
 - [ ] **Consider React Query for API data fetching** (Priority: Low)
