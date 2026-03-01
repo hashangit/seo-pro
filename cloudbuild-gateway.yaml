@@ -1,0 +1,55 @@
+# Cloud Build configuration for SEO Pro Gateway
+substitutions:
+  _IMAGE_TAG: 'latest'
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-gateway:${_IMAGE_TAG}'
+      - '-f'
+      - 'deploy/Dockerfile.gateway'
+      - '.'
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-gateway:${_IMAGE_TAG}'
+
+  # Deploy to Cloud Run using env-vars-file for all env vars
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        cat > /tmp/env.yaml << EOF
+        ENVIRONMENT: "production"
+        SUPABASE_URL: "https://cuumnoebybededepkuyi.supabase.co"
+        WORKOS_AUDIENCE: "api.workos.com"
+        WORKOS_ISSUER: "api.workos.com"
+        ADMIN_EMAILS: "hashdonline@gmail.com,hashan@proton.me"
+        SENDGRID_FROM_EMAIL: "noreply@zyntopia.com"
+        SENDGRID_FROM_NAME: "SEO Pro"
+        SDK_WORKER_URL: "https://seo-pro-sdk-worker-842809192601.us-central1.run.app"
+        FRONTEND_URL: "https://frontend-tau-six-83.vercel.app,https://seopro-hashangits-projects.vercel.app"
+        EOF
+
+        gcloud run deploy seo-pro-gateway \
+          --image us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-gateway:${_IMAGE_TAG} \
+          --region us-central1 \
+          --platform managed \
+          --allow-unauthenticated \
+          --env-vars-file /tmp/env.yaml \
+          --set-secrets "SUPABASE_SECRET_KEY=supabase-service-key:latest,WORKOS_CLIENT_ID=workos-client-id:latest,SENDGRID_API_KEY=sendgrid-api-key:latest" \
+          --min-instances 0 \
+          --memory 512Mi \
+          --cpu 1
+
+images:
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-gateway:${_IMAGE_TAG}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

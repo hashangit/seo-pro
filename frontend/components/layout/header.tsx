@@ -4,7 +4,8 @@ import Link from "next/link";
 import { CreditBalance } from "@/components/credits/credit-balance";
 import { AuthButton } from "@/components/auth/auth-button";
 import { SEOLogo } from "@/components/marketing/seo-logo";
-import { useAuth } from "@workos-inc/authkit-react";
+import { useAuthUser } from "@/hooks/use-auth";
+import { signOutAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -14,15 +15,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { User, LogOut } from "lucide-react";
+import { useTransition } from "react";
 
 export function Header() {
-  const { user, isLoading, signOut } = useAuth();
+  const { user, loading } = useAuthUser();
   const isAuthenticated = !!user;
+  const [isPending, startTransition] = useTransition();
 
-  const handleSignOut = async () => {
-    await signOut();
-    window.location.href = "/";
+  const handleSignOut = () => {
+    startTransition(() => {
+      signOutAction();
+    });
   };
+
+  const isLoading = loading || isPending;
 
   return (
     <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
