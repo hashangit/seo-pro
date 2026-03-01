@@ -14,7 +14,7 @@ interface AuditsPageProps {
 }
 
 export default async function AuditsPage({ searchParams }: AuditsPageProps) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
 
   const page = parseInt(params.page || '1', 10);

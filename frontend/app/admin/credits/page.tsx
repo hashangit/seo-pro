@@ -17,7 +17,7 @@ interface AdminCreditsPageProps {
 export default async function AdminCreditsPage({
   searchParams,
 }: AdminCreditsPageProps) {
-  const { user: _user } = await withAuth({ ensureSignedIn: true });
+  await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
 
   const page = parseInt(params.page || '1', 10);
