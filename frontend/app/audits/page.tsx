@@ -9,6 +9,7 @@ import Link from 'next/link';
 interface AuditsPageProps {
   searchParams: Promise<{
     page?: string;
+    status?: string;
   }>;
 }
 
@@ -47,15 +48,21 @@ export default async function AuditsPage({ searchParams }: AuditsPageProps) {
               <CardTitle>Filters</CardTitle>
             </CardHeader>
             <CardContent className="flex gap-4">
-              <Button variant="outline" size="sm">
-                All
-              </Button>
-              <Button variant="outline" size="sm">
-                Completed
-              </Button>
-              <Button variant="outline" size="sm">
-                Failed
-              </Button>
+              <Link href="/audits">
+                <Button variant={params.status ? 'outline' : 'default'} size="sm">
+                  All
+                </Button>
+              </Link>
+              <Link href="/audits?status=completed">
+                <Button variant={params.status === 'completed' ? 'default' : 'outline'} size="sm">
+                  Completed
+                </Button>
+              </Link>
+              <Link href="/audits?status=failed">
+                <Button variant={params.status === 'failed' ? 'default' : 'outline'} size="sm">
+                  Failed
+                </Button>
+              </Link>
             </CardContent>
           </Card>
         </div>

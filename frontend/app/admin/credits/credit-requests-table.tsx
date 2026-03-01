@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { approveCreditRequest, rejectCreditRequest } from './actions';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
@@ -55,6 +56,7 @@ const statusConfig = {
 };
 
 export function CreditRequestsTable({ requests }: CreditRequestsTableProps) {
+  const router = useRouter();
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [actionDialogOpen, setActionDialogOpen] = useState<string | null>(null);
   const [adminNotes, setAdminNotes] = useState('');
@@ -66,7 +68,7 @@ export function CreditRequestsTable({ requests }: CreditRequestsTableProps) {
       await approveCreditRequest(requestId, adminNotes || undefined);
       setActionDialogOpen(null);
       setAdminNotes('');
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error('Failed to approve request:', error);
       alert(error instanceof Error ? error.message : 'Failed to approve request');
@@ -86,7 +88,7 @@ export function CreditRequestsTable({ requests }: CreditRequestsTableProps) {
       await rejectCreditRequest(requestId, rejectReason);
       setActionDialogOpen(null);
       setRejectReason('');
-      window.location.reload();
+      router.refresh();
     } catch (error) {
       console.error('Failed to reject request:', error);
       alert(error instanceof Error ? error.message : 'Failed to reject request');

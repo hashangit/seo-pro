@@ -1,17 +1,11 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
 import { adminGetCreditRequests } from '@/lib/api-client';
 import { CreditRequestsTable } from './credit-requests-table';
+import { StatusFilter } from './status-filter';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 
 interface AdminCreditsPageProps {
   searchParams: Promise<{
@@ -55,20 +49,7 @@ export default async function AdminCreditsPage({
             <h1 className="text-3xl font-bold">Admin: Credit Requests</h1>
           </div>
           <div className="flex items-center gap-4">
-            <form>
-              <Select name="status" defaultValue={params.status || ''}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="All Statuses" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">All Statuses</SelectItem>
-                  <SelectItem value="pending">Pending</SelectItem>
-                  <SelectItem value="proof_uploaded">Proof Uploaded</SelectItem>
-                  <SelectItem value="approved">Approved</SelectItem>
-                  <SelectItem value="rejected">Rejected</SelectItem>
-                </SelectContent>
-              </Select>
-            </form>
+            <StatusFilter currentStatus={params.status} />
           </div>
         </div>
 
