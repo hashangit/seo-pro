@@ -3,7 +3,7 @@ import { adminGetCreditRequests } from '@/lib/api-client';
 import { CreditRequestsTable } from './credit-requests-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, RefreshCw } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import Link from 'next/link';
 import {
   Select,
@@ -23,7 +23,7 @@ interface AdminCreditsPageProps {
 export default async function AdminCreditsPage({
   searchParams,
 }: AdminCreditsPageProps) {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { user: _user } = await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
 
   const page = parseInt(params.page || '1', 10);
