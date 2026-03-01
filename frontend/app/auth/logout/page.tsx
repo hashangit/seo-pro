@@ -1,18 +1,24 @@
 "use client";
 
-import { useAuth } from "@workos-inc/authkit-react";
+import { signOutAction } from "@/actions/auth";
+import { useAuthUser } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
+import { useTransition } from "react";
 
 export default function LogoutPage() {
   const router = useRouter();
-  const { signOut, isLoading } = useAuth();
+  const { loading } = useAuthUser();
+  const [isPending, startTransition] = useTransition();
 
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
+  const handleSignOut = () => {
+    startTransition(() => {
+      signOutAction();
+    });
   };
+
+  const isLoading = loading || isPending;
 
   return (
     <div className="flex min-h-screen items-center justify-center">

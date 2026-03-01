@@ -1,21 +1,22 @@
 "use client";
 
-import { useAuth } from "@workos-inc/authkit-react";
+import { useAuthUser } from "@/hooks/use-auth";
+import { signInAction } from "@/actions/auth";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LoginPage() {
-  const { signIn, user, isLoading } = useAuth();
+  const { user, loading } = useAuthUser();
   const router = useRouter();
 
   // Redirect if already authenticated
   useEffect(() => {
-    if (user && !isLoading) {
+    if (user && !loading) {
       router.push("/");
     }
-  }, [user, isLoading, router]);
+  }, [user, loading, router]);
 
   return (
     <div className="flex min-h-screen items-center justify-center">
@@ -26,16 +27,12 @@ export default function LoginPage() {
             Sign in to access your dashboard
           </p>
         </div>
-        <div className="flex justify-center">
-          <Button
-            size="lg"
-            onClick={() => signIn()}
-            disabled={isLoading}
-          >
+        <form action={signInAction} className="flex justify-center">
+          <Button type="submit" size="lg" disabled={loading}>
             <LogIn className="mr-2 h-4 w-4" />
             Sign In with WorkOS
           </Button>
-        </div>
+        </form>
       </div>
     </div>
   );
