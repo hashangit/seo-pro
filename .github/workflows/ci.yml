@@ -118,14 +118,18 @@ jobs:
   security-scan:
     name: Security Scan
     runs-on: ubuntu-latest
-    continue-on-error: true  # Don't fail CI due to transient security scan issues
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Create default SARIF file
+        run: |
+          echo '{"version": "2.1.0", "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "runs": []}' > trivy-results.sarif
+
       - name: Run Trivy vulnerability scanner
         id: trivy-scan
+        continue-on-error: true
         uses: aquasecurity/trivy-action@0.30.0
         env:
           # Use GitHub Container Registry directly (more reliable than mirror.gcr.io)
@@ -135,11 +139,6 @@ jobs:
           scan-ref: '.'
           format: 'sarif'
           output: 'trivy-results.sarif'
-
-      - name: Create empty SARIF if Trivy failed
-        if: failure() && steps.trivy-scan.outcome == 'failure'
-        run: |
-          echo '{"version": "2.1.0", "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "runs": []}' > trivy-results.sarif
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
