@@ -1,0 +1,53 @@
+# Cloud Build configuration for SEO Pro SDK Worker
+substitutions:
+  _IMAGE_TAG: 'latest'
+
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-sdk-worker:${_IMAGE_TAG}'
+      - '-f'
+      - 'deploy/Dockerfile.sdk-worker'
+      - '.'
+
+  # Push to Artifact Registry
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-sdk-worker:${_IMAGE_TAG}'
+
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'seo-pro-sdk-worker'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-sdk-worker:${_IMAGE_TAG}'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '4Gi'
+      - '--cpu'
+      - '2'
+      - '--min-instances'
+      - '0'
+      - '--timeout'
+      - '600'
+      - '--set-env-vars'
+      - 'ANTHROPIC_BASE_URL=https://api.z.ai/api/anthropic,API_TIMEOUT_MS=3000000,ANTHROPIC_DEFAULT_SONNET_MODEL=glm-4.7,SUPABASE_URL=https://cuumnoebybededepkuyi.supabase.co,ENVIRONMENT=production'
+      - '--set-secrets'
+      - 'ANTHROPIC_AUTH_TOKEN=zai-api-key:latest,SUPABASE_SECRET_KEY=supabase-service-key:latest'
+
+images:
+  - 'us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy/seo-pro-sdk-worker:${_IMAGE_TAG}'
+
+options:
+  logging: CLOUD_LOGGING_ONLY

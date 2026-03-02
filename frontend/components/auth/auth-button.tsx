@@ -1,18 +1,19 @@
-"use client";
+'use client';
 
-import { useAuth } from "@workos-inc/authkit-react";
-import { Button } from "@/components/ui/button";
-import { LogIn, LogOut } from "lucide-react";
+import { useAuthUser } from '@/hooks/use-auth';
+import { signOutAction } from '@/actions/auth';
+import { Button } from '@/components/ui/button';
+import { LogIn, LogOut } from 'lucide-react';
 
 interface AuthButtonProps {
-  variant?: "default" | "outline" | "ghost";
-  size?: "default" | "sm" | "lg";
+  variant?: 'default' | 'outline' | 'ghost';
+  size?: 'default' | 'sm' | 'lg';
 }
 
-export function AuthButton({ variant = "default", size = "sm" }: AuthButtonProps) {
-  const { user, signIn, signOut, isLoading } = useAuth();
+export function AuthButton({ variant = 'default', size = 'sm' }: AuthButtonProps) {
+  const { user, loading, isAuthenticated } = useAuthUser();
 
-  if (isLoading) {
+  if (loading) {
     return (
       <Button variant={variant} size={size} disabled>
         Loading...
@@ -20,27 +21,23 @@ export function AuthButton({ variant = "default", size = "sm" }: AuthButtonProps
     );
   }
 
-  if (user) {
+  if (!isAuthenticated || !user) {
     return (
-      <Button
-        variant="outline"
-        size={size}
-        onClick={() => signOut()}
-      >
-        <LogOut className="mr-2 h-4 w-4" />
-        Sign Out
+      <Button variant={variant} size={size} asChild>
+        <a href="/login">
+          <LogIn className="mr-2 h-4 w-4" />
+          Sign In
+        </a>
       </Button>
     );
   }
 
   return (
-    <Button
-      variant={variant}
-      size={size}
-      onClick={() => signIn()}
-    >
-      <LogIn className="mr-2 h-4 w-4" />
-      Sign In
-    </Button>
+    <form action={signOutAction}>
+      <Button variant="outline" size={size} type="submit">
+        <LogOut className="mr-2 h-4 w-4" />
+        Sign Out ({user.firstName || user.email})
+      </Button>
+    </form>
   );
 }

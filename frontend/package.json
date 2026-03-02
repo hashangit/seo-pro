@@ -19,7 +19,7 @@
     "@radix-ui/react-tabs": "^1.1.1",
     "@radix-ui/react-toast": "^1.2.2",
     "@supabase/supabase-js": "^2.48.1",
-    "@workos-inc/authkit-react": "^0.16.0",
+    "@workos-inc/authkit-nextjs": "^2.15.0",
     "class-variance-authority": "^0.7.0",
     "clsx": "^2.1.1",
     "lucide-react": "^0.446.0",
