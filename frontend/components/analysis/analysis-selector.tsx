@@ -57,7 +57,7 @@ const TABS: TabConfig[] = [
 
 export function AnalysisSelector() {
   const router = useRouter();
-  const { isAuthenticated, getAccessToken } = useAuthUser();
+  const { getAccessToken } = useAuthUser();
   const [activeTab, setActiveTab] = useState<AnalysisMode>("individual");
   const [url, setUrl] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<Set<AnalysisType>>(
