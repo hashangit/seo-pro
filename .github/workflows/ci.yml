@@ -123,10 +123,6 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Create default SARIF file
-        run: |
-          echo '{"version": "2.1.0", "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json", "runs": []}' > trivy-results.sarif
-
       - name: Run Trivy vulnerability scanner
         id: trivy-scan
         continue-on-error: true
@@ -142,7 +138,7 @@ jobs:
 
       - name: Upload Trivy results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@v4
-        if: hashFiles('trivy-results.sarif') != ''
+        if: steps.trivy-scan.outcome == 'success'
         with:
           sarif_file: 'trivy-results.sarif'
 
