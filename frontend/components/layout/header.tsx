@@ -50,12 +50,6 @@ export function Header() {
             >
               Pricing
             </Link>
-            <Link
-              href="/docs"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Documentation
-            </Link>
           </nav>
         </div>
         <div className="ml-auto flex items-center gap-4">

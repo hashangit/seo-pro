@@ -13,6 +13,7 @@ import {
   type URLDiscoveryResponse,
   type AnalysisEstimateResponse,
 } from "@/lib/api";
+import { useAuthUser } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -56,6 +57,7 @@ const TABS: TabConfig[] = [
 
 export function AnalysisSelector() {
   const router = useRouter();
+  const { isAuthenticated, getAccessToken } = useAuthUser();
   const [activeTab, setActiveTab] = useState<AnalysisMode>("individual");
   const [url, setUrl] = useState("");
   const [selectedTypes, setSelectedTypes] = useState<Set<AnalysisType>>(
@@ -96,10 +98,11 @@ export function AnalysisSelector() {
     setShowSitemapInput(false);
 
     try {
+      const token = await getAccessToken();
       const result = await discoverSiteURLs({
         url,
         sitemap_url: manualSitemapUrl,
-      });
+      }, token);
 
       if (result.error) {
         setError(result.error);
@@ -155,12 +158,13 @@ export function AnalysisSelector() {
     setEstimate(null);
 
     try {
+      const token = await getAccessToken();
       const result = await estimateAnalysis({
         url,
         analysis_mode: activeTab,
         analysis_types: activeTab === "individual" ? Array.from(selectedTypes) : undefined,
         selected_urls: activeTab === "site_audit" ? Array.from(selectedUrls) : undefined,
-      });
+      }, token);
       setEstimate(result);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to get estimate");
@@ -176,6 +180,7 @@ export function AnalysisSelector() {
     setError(null);
 
     try {
+      const token = await getAccessToken();
       if (activeTab === "site_audit") {
         // Site audit uses the quote flow
         if (!estimate.quote_id) {
@@ -183,7 +188,8 @@ export function AnalysisSelector() {
         }
         const result = await runAudit(
           estimate.quote_id,
-          Array.from(selectedUrls)
+          Array.from(selectedUrls),
+          token
         );
         router.push(`/audit/${result.audit_id}`);
       } else {

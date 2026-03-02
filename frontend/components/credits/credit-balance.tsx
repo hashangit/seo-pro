@@ -4,25 +4,34 @@ import { useEffect, useState } from "react";
 import { getCreditBalance } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { useAuthUser } from "@/hooks/use-auth";
 
 export function CreditBalance() {
+  const { isAuthenticated, getAccessToken } = useAuthUser();
   const [balance, setBalance] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function fetchBalance() {
+      if (!isAuthenticated) {
+        setBalance(null);
+        setLoading(false);
+        return;
+      }
+
       try {
-        const data = await getCreditBalance();
+        const token = await getAccessToken();
+        const data = await getCreditBalance(token);
         setBalance(data.balance);
       } catch {
         // Not logged in or error
-        setBalance(0);
+        setBalance(null);
       } finally {
         setLoading(false);
       }
     }
     fetchBalance();
-  }, []);
+  }, [isAuthenticated, getAccessToken]);
 
   if (loading) {
     return (
