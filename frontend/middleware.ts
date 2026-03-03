@@ -7,7 +7,6 @@ export default authkitMiddleware({
       '/',
       '/login',
       '/signup',
-      '/callback',
       '/api/auth/:path*',
       '/features',
       '/pricing',
@@ -17,12 +16,7 @@ export default authkitMiddleware({
 
 export const config = {
   matcher: [
-    // Only run middleware on protected routes
-    '/dashboard/:path*',
-    '/settings/:path*',
-    '/audits/:path*',
-    '/admin/:path*',
-    '/credits/:path*',
-    '/analysis/:path*',
+    // Match all paths except static files
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 };
