@@ -41,7 +41,7 @@ export function CreditBalance() {
 
   if (balance === null) {
     return (
-      <Link href="/credits/purchase">
+      <Link href="/credits">
         <Badge variant="secondary" className="cursor-pointer">
           Get Credits
         </Badge>
