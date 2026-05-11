@@ -34,7 +34,7 @@ pydantic>=2.10.0,<3.0.0
 pydantic-settings>=2.6.0,<3.0.0
 
 # Utilities
-urllib3>=2.6.3,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-2025-66418
+urllib3>=2.7.0,<3.0.0             # CRITICAL: CVE-2026-21441 (CVSS 8.9), CVE-2025-66418
 validators>=0.22.0,<1.0.0
 python-dotenv>=1.0.0,<2.0.0
 
