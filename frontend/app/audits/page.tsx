@@ -1,5 +1,5 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
-import { listAudits } from '@/lib/api-client';
+import { listAudits } from '@/lib/api';
 import { AuditsTable } from './audits-table';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,14 +14,14 @@ interface AuditsPageProps {
 }
 
 export default async function AuditsPage({ searchParams }: AuditsPageProps) {
-  await withAuth({ ensureSignedIn: true });
+  const { accessToken } = await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
 
   const page = parseInt(params.page || '1', 10);
   const limit = 20;
   const offset = (page - 1) * limit;
 
-  const { audits, total } = await listAudits(limit, offset);
+  const { audits, total } = await listAudits(limit, offset, accessToken);
   const totalPages = Math.ceil(total / limit);
 
   return (

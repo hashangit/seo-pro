@@ -35,7 +35,6 @@ COPY --from=builder /install /usr/local
 
 # Copy application code (only what's needed)
 COPY api/ ./api/
-COPY orchestrator/ ./orchestrator/
 
 # Create non-root user for security
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app

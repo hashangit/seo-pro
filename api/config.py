@@ -40,12 +40,7 @@ try:
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: str | None = None
-        BROWSER_WORKER_URL: str | None = None
         SDK_WORKER_URL: str | None = None
-
-        # Orchestrator (Deprecated - replaced by SDK Worker)
-        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")
@@ -180,12 +175,7 @@ except ImportError:
         PAYHERE_CREDIT_RATE_LKR: float = 350.0
 
         # Workers
-        HTTP_WORKER_URL: str | None = None
-        BROWSER_WORKER_URL: str | None = None
         SDK_WORKER_URL: str | None = None
-
-        # Orchestrator (Deprecated - replaced by SDK Worker)
-        ORCHESTRATOR_URL: str | None = None
 
         # Google Cloud
         GOOGLE_CLOUD_PROJECT: str = Field(default="test-project", description="Google Cloud project ID")

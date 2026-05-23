@@ -1,14 +1,13 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
-import { getCreditBalance, listAudits } from '@/lib/api-client';
+import { getCreditBalance, listAudits } from '@/lib/api';
 import { DashboardContent } from './dashboard-content';
 
 export default async function DashboardPage() {
-  const { user } = await withAuth({ ensureSignedIn: true });
+  const { user, accessToken } = await withAuth({ ensureSignedIn: true });
 
-  // Fetch data server-side with automatic token injection
   const [credits, audits] = await Promise.all([
-    getCreditBalance(),
-    listAudits(10, 0),
+    getCreditBalance(accessToken),
+    listAudits(10, 0, accessToken),
   ]);
 
   return (

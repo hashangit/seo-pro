@@ -25,21 +25,7 @@ services:
     volumes:
       - ./api:/app/api
       - ./workers:/app/workers
-      - ./orchestrator:/app/orchestrator
     command: uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
-
-  # HTTP Worker (for local testing without full deploy)
-  http-worker:
-    build:
-      context: .
-      dockerfile: deploy/Dockerfile.http-worker
-    ports:
-      - "8081:8080"
-    environment:
-      - ENVIRONMENT=development
-    volumes:
-      - ./workers:/app/workers
-    command: uvicorn workers.http_worker:app --host 0.0.0.0 --port 8080 --reload
 
   # Frontend (Next.js development server)
   frontend:

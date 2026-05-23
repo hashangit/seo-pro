@@ -1,5 +1,5 @@
 import { withAuth } from '@workos-inc/authkit-nextjs';
-import { adminGetCreditRequests } from '@/lib/api-client';
+import { adminGetCreditRequests } from '@/lib/api';
 import { CreditRequestsTable } from './credit-requests-table';
 import { StatusFilter } from './status-filter';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,7 @@ interface AdminCreditsPageProps {
 export default async function AdminCreditsPage({
   searchParams,
 }: AdminCreditsPageProps) {
-  await withAuth({ ensureSignedIn: true });
+  const { accessToken } = await withAuth({ ensureSignedIn: true });
   const params = await searchParams;
 
   const page = parseInt(params.page || '1', 10);
@@ -27,7 +27,8 @@ export default async function AdminCreditsPage({
   const { requests, total } = await adminGetCreditRequests(
     params.status,
     limit,
-    offset
+    offset,
+    accessToken
   );
 
   // Calculate stats

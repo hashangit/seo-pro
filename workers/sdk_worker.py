@@ -76,13 +76,11 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            # updated_at is handled automatically by DB trigger
             update_data: dict[str, Any] = {"status": status}
 
             if results is not None:
                 update_data["result_json"] = results
 
-            # Set completed_at for terminal states
             if status in ("completed", "failed"):
                 from datetime import datetime
                 update_data["completed_at"] = datetime.utcnow().isoformat()
@@ -94,6 +92,41 @@ async def update_task_status(task_id: str, audit_id: str, status: str, results: 
                 await asyncio.sleep(0.5 * (2**attempt))
             else:
                 print(f"Failed to update task status: {e}")
+
+
+async def update_audit_result(audit_id: str, status: str, results: Any = None, error_message: str | None = None):
+    """Update the audits table with analysis results."""
+    from supabase import create_client
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    supabase_key = os.getenv("SUPABASE_SECRET_KEY")
+
+    if not supabase_url or not supabase_key:
+        print("Warning: Supabase credentials not configured")
+        return
+
+    supabase = create_client(supabase_url, supabase_key)
+
+    from datetime import datetime
+
+    update_data: dict[str, Any] = {"status": status}
+    if results is not None:
+        update_data["results_json"] = results
+    if error_message:
+        update_data["error_message"] = error_message
+    if status in ("completed", "failed"):
+        update_data["completed_at"] = datetime.utcnow().isoformat()
+
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            supabase.table("audits").update(update_data).eq("id", audit_id).execute()
+            return
+        except Exception as e:
+            if attempt < max_retries - 1:
+                await asyncio.sleep(0.5 * (2**attempt))
+            else:
+                print(f"Failed to update audit status: {e}")
 
 
 # ============================================================================
@@ -349,6 +382,14 @@ async def analyze(request: AnalyzeRequest) -> dict[str, Any]:
         status = "completed" if result.get("status") != "error" else "failed"
         await update_task_status(
             task_id=request.task_id, audit_id=request.audit_id, status=status, results=result
+        )
+
+    # Update audit record so frontend polling sees status changes
+    if request.audit_id:
+        status = "completed" if result.get("status") != "error" else "failed"
+        error = result.get("error") if result.get("status") == "error" else None
+        await update_audit_result(
+            audit_id=request.audit_id, status=status, results=result, error_message=error
         )
 
     return result

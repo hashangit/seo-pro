@@ -12,7 +12,7 @@ from fastapi import HTTPException
 from api.config import get_settings
 
 
-async def submit_audit_to_orchestrator(
+async def submit_audit_task(
     audit_id: str, url: str, page_count: int, user_id: str, page_urls: list[str] | None = None
 ):
     """Submit audit job to SDK Worker for unified analysis."""

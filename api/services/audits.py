@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 
 from fastapi import HTTPException
 
-from api.services.cloud_tasks import submit_audit_to_orchestrator
+from api.services.cloud_tasks import submit_audit_task
 from api.services.supabase import get_supabase_client
 from api.config import get_settings
 
@@ -235,7 +235,7 @@ async def run_audit_with_quote(
 
     # Submit to Cloud Tasks for processing
     try:
-        await submit_audit_to_orchestrator(
+        await submit_audit_task(
             audit_id=audit_id,
             url=quote["url"],
             page_count=page_count,
@@ -302,7 +302,7 @@ async def _run_audit_dev_mode(
 
     # Submit to Cloud Tasks for processing
     try:
-        await submit_audit_to_orchestrator(
+        await submit_audit_task(
             audit_id=audit_id,
             url=quote["url"],
             page_count=page_count,

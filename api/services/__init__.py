@@ -21,7 +21,7 @@ from .audits import (
     validate_and_claim_quote,
 )
 from .auth import get_jwks, invalidate_jwks_cache, sync_user_to_supabase, verify_token
-from .cloud_tasks import submit_audit_to_orchestrator, submit_sdk_task
+from .cloud_tasks import submit_audit_task, submit_sdk_task
 from .credits import (
     CREDITS_PER_DOLLAR,
     calculate_credits,
@@ -54,7 +54,7 @@ __all__ = [
     "deduct_analysis_credits",
     "CREDITS_PER_DOLLAR",
     # Cloud Tasks
-    "submit_audit_to_orchestrator",
+    "submit_audit_task",
     "submit_sdk_task",
     # Analyses
     "proxy_to_worker",
