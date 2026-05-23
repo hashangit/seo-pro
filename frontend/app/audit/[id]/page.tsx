@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState, useTransition, useRef, useCallback } from "react";
 import { useParams } from "next/navigation";
-import { getAuditStatus } from "@/lib/api";
-import { logger, LogContext } from "@/lib/logger";
+import { useAuditStatus } from "@/hooks/use-queries";
+import { useAuditStream } from "@/hooks/use-audit-stream";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Loader2, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
@@ -12,48 +11,8 @@ export default function AuditPage() {
   const params = useParams();
   const auditId = params.id as string;
 
-  const [audit, setAudit] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [isPolling, startTransition] = useTransition();
-  const pollingRef = useRef(true);
-
-  const fetchStatus = useCallback(async () => {
-    if (!auditId) return;
-
-    try {
-      const data = await getAuditStatus(auditId);
-      setAudit(data);
-
-      if (data.status === "completed" || data.status === "failed") {
-        pollingRef.current = false;
-        setLoading(false);
-      }
-    } catch (err) {
-      logger.error(LogContext.AUDIT, err);
-      setLoading(false);
-      pollingRef.current = false;
-    }
-  }, [auditId]);
-
-  useEffect(() => {
-    if (!auditId) return;
-
-    // Initial fetch
-    startTransition(() => fetchStatus());
-
-    // Poll every 2 seconds if still processing with proper cleanup
-    const interval = setInterval(() => {
-      if (pollingRef.current) {
-        startTransition(() => fetchStatus());
-      }
-    }, 2000);
-
-    // Cleanup function - properly clear interval
-    return () => {
-      clearInterval(interval);
-      pollingRef.current = false;
-    };
-  }, [auditId, fetchStatus]);
+  const { data: audit, isLoading } = useAuditStatus(auditId);
+  useAuditStream(auditId, !isLoading && audit?.status !== "completed" && audit?.status !== "failed");
 
   const statusColors = {
     queued: "bg-yellow-100 text-yellow-800",
@@ -62,7 +21,7 @@ export default function AuditPage() {
     failed: "bg-red-100 text-red-800",
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="text-center">
@@ -87,6 +46,8 @@ export default function AuditPage() {
     );
   }
 
+  const isActive = audit.status !== "completed" && audit.status !== "failed";
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-4xl space-y-6">
@@ -97,7 +58,7 @@ export default function AuditPage() {
             <p className="text-muted-foreground">{audit.url}</p>
           </div>
           <div className="flex items-center gap-2">
-            {isPolling && audit.status !== "completed" && audit.status !== "failed" && (
+            {isActive && (
               <Loader2 className="h-4 w-4 animate-spin text-primary" />
             )}
             <Badge
@@ -151,23 +112,22 @@ export default function AuditPage() {
         </div>
 
         {/* Results */}
-        {audit.status === "completed" && audit.results && (
+        {audit.status === "completed" && (audit as any).results && (
           <div className="space-y-6">
-            {/* Technical Results */}
-            {audit.results.technical && (
+            {((audit as any).results as any)?.technical && (
               <Card>
                 <CardHeader>
                   <CardTitle>Technical SEO</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="space-y-2">
-                    {audit.results.technical.passes?.map((item: any) => (
+                    {((audit as any).results as any).technical.passes?.map((item: any) => (
                       <div key={item.check} className="flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4 text-green-600" />
                         <span className="text-sm">{item.check}: {item.value}</span>
                       </div>
                     ))}
-                    {audit.results.technical.issues?.map((item: any) => (
+                    {((audit as any).results as any).technical.issues?.map((item: any) => (
                       <div key={item.check} className="flex items-center gap-2">
                         <XCircle className="h-4 w-4 text-red-600" />
                         <span className="text-sm">{item.check}: {item.value}</span>
@@ -178,8 +138,7 @@ export default function AuditPage() {
               </Card>
             )}
 
-            {/* Content Results */}
-            {audit.results.content && (
+            {((audit as any).results as any)?.content && (
               <Card>
                 <CardHeader>
                   <CardTitle>Content Quality (E-E-A-T)</CardTitle>
@@ -188,24 +147,23 @@ export default function AuditPage() {
                   <div className="mb-4">
                     <p className="text-sm text-muted-foreground">E-E-A-T Score</p>
                     <p className="text-3xl font-bold">
-                      {audit.results.content.eeat_score || 0}/100
+                      {((audit as any).results as any).content.eeat_score || 0}/100
                     </p>
                   </div>
                 </CardContent>
               </Card>
             )}
 
-            {/* Schema Results */}
-            {audit.results.schema && (
+            {((audit as any).results as any)?.schema && (
               <Card>
                 <CardHeader>
                   <CardTitle>Schema Markup</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <p className="text-sm mb-2">
-                    {audit.results.schema.schemas?.length || 0} schema types detected
+                    {((audit as any).results as any).schema.schemas?.length || 0} schema types detected
                   </p>
-                  {audit.results.schema.schemas?.map((schema: any) => (
+                  {((audit as any).results as any).schema.schemas?.map((schema: any) => (
                     <Badge key={schema.type} variant="secondary" className="mr-2">
                       {schema.type}
                     </Badge>
@@ -228,7 +186,7 @@ export default function AuditPage() {
                 <div>
                   <p className="font-medium">An error occurred during the audit.</p>
                   <p className="text-sm text-muted-foreground">
-                    {audit.error_message || "Please try again or contact support."}
+                    {(audit as any).error_message || "Please try again or contact support."}
                   </p>
                 </div>
               </div>

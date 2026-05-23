@@ -253,8 +253,6 @@ gcloud run services update seo-pro-gateway \
 | `NEXT_PUBLIC_WORKOS_CLIENT_ID` | WorkOS client ID |
 | `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | Auth callback URL |
 | `NEXT_PUBLIC_API_URL` | Gateway API URL |
-| `NEXT_PUBLIC_SUPABASE_URL` | Supabase project URL |
-| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Supabase anon key |
 
 ## Manual Payment Flow
 
@@ -391,4 +389,6 @@ gcloud run revisions list --service=seo-pro-gateway --region=us-central1
 gcloud run services update-traffic seo-pro-gateway \
   --region us-central1 \
   --to-revisions=seo-pro-gateway-00001-abc=100
+```
+ateway-00001-abc=100
 ```

@@ -62,8 +62,7 @@ seo-pro/
 ├── workers/                # Worker services
 │   └── sdk_worker.py        # Unified SDK worker (Claude Agent SDK)
 │
-├── orchestrator/           # Legacy orchestrator (bundled in gateway)
-│   └── scheduler.py         # Cloud Tasks+in-memory audit orchestration
+├── ~~orchestrator/~~        # REMOVED 2026-05-23 — legacy Cloud Tasks orchestrator
 │
 ├── agents/                 # 6 subagent definitions (Markdown + frontmatter)
 │   ├── seo-technical.md
@@ -96,8 +95,8 @@ seo-pro/
 │
 ├── deploy/                 # Dockerfiles
 │   ├── Dockerfile.gateway
-│   ├── Dockerfile.sdk-worker
-│   └── Dockerfile.orchestrator
+│   └── Dockerfile.sdk-worker
+│   # ~~Dockerfile.orchestrator~~ — REMOVED 2026-05-23
 │
 ├── web-search/             # MCP server for Google search (TypeScript)
 ├── hooks/                  # Claude Code hooks (pre-commit SEO checks, schema validation)

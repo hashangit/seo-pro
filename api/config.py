@@ -26,6 +26,8 @@ try:
         # Supabase
         SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
         SUPABASE_SECRET_KEY: str = Field(default="test-secret-key", description="Supabase secret key (server-side only)")
+        SUPABASE_DATABASE_URL: str | None = Field(default=None, description="Direct PostgreSQL connection URL for LISTEN/NOTIFY")
+        SUPABASE_DATABASE_URL: str | None = Field(default=None, description="Direct PostgreSQL connection URL for LISTEN/NOTIFY")
 
         # WorkOS
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
@@ -161,6 +163,7 @@ except ImportError:
         # Supabase
         SUPABASE_URL: str = Field(default="https://test.supabase.co", description="Supabase project URL")
         SUPABASE_SECRET_KEY: str = Field(default="test-secret-key", description="Supabase secret key (server-side only)")
+        SUPABASE_DATABASE_URL: str | None = Field(default=None, description="Direct PostgreSQL connection URL for LISTEN/NOTIFY")
 
         # WorkOS
         WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")

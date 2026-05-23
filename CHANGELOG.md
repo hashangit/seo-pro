@@ -5,6 +5,101 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-05-23
+
+### Removed - Legacy Orchestrator (Cleanup)
+
+The legacy orchestrator service has been fully removed. It had been bypassed by the API Gateway directly dispatching to the unified SDK Worker via Cloud Tasks, creating confusion about which code path was correct. The orchestrator also used in-memory state (`_audit_state = {}`) that would be lost on Cloud Run restart or scale events.
+
+- **Removed**: `orchestrator/scheduler.py` — legacy audit orchestration with in-memory state tracking
+- **Removed**: `deploy/Dockerfile.orchestrator` — no longer built or deployed
+- **Removed**: `frontend/lib/api-client.ts` — unused API client superseded by `lib/api.ts`
+- **Cleaned**: `docker-compose.yml` — removed orchestrator service definition
+- **Cleaned**: `api/config.py` — removed orchestration-specific settings and env vars
+- **Cleaned**: `api/services/` — removed orchestrator proxy code in `audits.py` and `cloud_tasks.py`
+- **Cleaned**: `.github/workflows/ci.yml` — removed `ruff check orchestrator/` and Dockerfile.orchestrator build step
+- **Cleaned**: `deploy/Dockerfile.gateway` — removed orchestrator copy step
+
+*User perspective*: No impact — the orchestrator was already bypassed. The single audit path (API Gateway → Cloud Tasks → SDK Worker → Supabase) remains unchanged.
+
+### Added - Code Review Documentation
+
+Comprehensive architectural review covering all system components.
+
+- **Added**: `docs/review/` — 10 review documents plus index (01-system-architecture through 10-findings)
+- **Added**: `docs/review/README.md` — review index and navigation
+
+### Added - Frontend State Management (TanStack Query)
+
+Replaced manual `useState` + `useEffect` + `useRef` patterns with declarative TanStack Query hooks. This eliminates duplicate requests (e.g., `CreditBalance` and `CreditsHistoryPage` both independently fetching `/credits/balance`), provides built-in caching, and standardizes loading/error handling across all data-fetching components.
+
+- **Added**: `@tanstack/react-query` dependency
+- **Added**: `frontend/lib/query-client.ts` — QueryClient factory with sensible `staleTime`/`retry` defaults
+- **Added**: `frontend/components/providers.tsx` — unified `QueryClientProvider` + `AuthKitProvider` wrapper
+- **Added**: `frontend/hooks/use-queries.ts` — custom hooks replacing all manual data fetching:
+  - `useCreditBalance()` with 30s stale time (avoids refetch on every mount)
+  - `useCreditHistory()`, `useCreditRequests()` for credit pages
+  - `useAuditsList()`, `useAnalysesList()` for list pages with filtering
+  - `useAuditStatus()`, `useAnalysisStatus()` with conditional `refetchInterval` (stops on completion)
+  - `useCreateCreditRequest()`, `useSubmitPaymentProof()` mutations with automatic cache invalidation
+
+- **Updated**: `CreditBalance` — uses `useCreditBalance()` instead of manual `useState` + `useEffect`
+- **Updated**: `PurchaseCredits` — uses `useCreateCreditRequest()` mutation
+- **Updated**: `CreditsHistoryPage` — uses `useCreditHistory()` + `useCreditBalance()`, automatic cache sharing with header component
+- **Updated**: `CreditRequestsPage` — uses `useCreditRequests()` + `useSubmitPaymentProof()` mutation
+- **Updated**: `AnalysesListPage` — uses `useAnalysesList()` instead of manual `useState` + `useEffect`
+- **Updated**: `frontend/app/layout.tsx` — uses new `Providers` component wrapping both auth and query providers
+
+*User perspective*: Smoother UI — credit balance in the header and credit history page share the same cached data, no flickering duplicate loads. Operation loading states are consistent across all pages.
+
+*Dev perspective*: Standardized data fetching pattern. Adding a new API-backed component is now `useQuery({ queryKey: [...], queryFn: apiFunc })` instead of manual state management. Mutations automatically invalidate related queries.
+
+### Added - Real-Time Audit Status via WebSocket + Postgres LISTEN/NOTIFY
+
+Replaced HTTP polling (2-second intervals for audits, 5-second for analyses) with push-based real-time updates. The entire stack is event-driven — zero polling anywhere.
+
+- **Added**: `supabase/migrations/002_audit_change_trigger.sql` — DB trigger that fires `pg_notify('audit_changes', payload)` on every audit table update
+- **Added**: `api/routes/ws.py` — WebSocket endpoint `wss://gateway/api/v1/audit/{id}/stream` with asyncpg LISTEN subscription
+- **Added**: `api/core/ws_auth.py` — WorkOS JWT validation extracted from WebSocket query parameters
+- **Added**: `frontend/hooks/use-audit-stream.ts` — WebSocket client hook that updates TanStack Query cache via `queryClient.setQueryData()`
+- **Added**: `asyncpg>=0.30.0` dependency for direct Postgres connection pool
+- **Added**: `api/config.py` — new `SUPABASE_DATABASE_URL` setting for direct Postgres connections
+- **Updated**: `api/main.py` — startup/shutdown hooks for asyncpg pool lifecycle, registers WebSocket router
+- **Updated**: `AuditPage` (`frontend/app/audit/[id]/page.tsx`) — uses `useAuditStatus()` + `useAuditStream()` instead of manual `useEffect` polling
+- **Updated**: `AnalysisResultsPage` (`frontend/app/analysis/[id]/page.tsx`) — uses `useAnalysisStatus()` + `useAnalysisStream()` instead of manual `useEffect` polling
+
+**Architecture:**
+```
+Worker writes to Supabase
+  → DB trigger: pg_notify('audit_changes', payload)
+    → FastAPI Gateway: asyncpg LISTEN on WebSocket connect
+      → wss:// gateway sends events to frontend
+        → queryClient.setQueryData(['audit', id], payload)
+```
+
+*User perspective*: Instant status transitions — the spinner switches from "queued" to "processing" to "completed" without the 2-second polling delay. No more flickering refresh cycles.
+
+*Dev perspective*: No polling anywhere in the stack. LISTEN/NOTIFY is event-driven (Postgres pushes when data changes, not on a timer). WebSocket reconnects automatically with 2-second backoff if the connection drops (e.g., Cloud Run 300s timeout). WorkOS remains the only auth system — token is passed as a WebSocket query parameter and validated by the Gateway before subscribing.
+
+### Removed - Dead Supabase Frontend Client
+
+The Supabase JS client in the frontend (`lib/supabase.ts`) was set up but never used — all data access flows through the FastAPI Gateway. This created confusion for new developers and added dead weight to the bundle.
+
+- **Removed**: `frontend/lib/supabase.ts` — unused Supabase client with TypeScript interfaces
+- **Removed**: `@supabase/supabase-js` from frontend dependencies
+- **Removed**: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` from `docker-compose.yml` frontend service
+- **Removed**: `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` from `docs/DEPLOYMENT.md` frontend section
+
+*User perspective*: No impact — the client was never functional (env var name mismatch between `ANON_KEY` in docker-compose and `PUBLISHABLE_KEY` in the client).
+
+*Dev perspective*: Clear separation — all data flows through FastAPI. No ambiguity about whether to use the Supabase client or the API client.
+
+### Changed - Taste System Architecture Guidance
+
+- **Added**: `.commandcode/taste/taste.md` — learned preferences for routing frontend data through FastAPI (not Supabase directly) and using Postgres LISTEN/NOTIFY for real-time updates
+
+
+
 ## [2.1.0] - 2026-02-28
 
 ### Added - Manual Payment Flow

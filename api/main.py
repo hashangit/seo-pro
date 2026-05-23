@@ -24,6 +24,7 @@ logger = logging.getLogger(__name__)
 from api.core.app import create_app  # noqa: E402
 from api.routes import analyses, audits, credits, credit_requests, health  # noqa: E402
 from api.routes.admin import credits as admin_credits  # noqa: E402
+from api.routes.ws import router as ws_router, init_pg_pool, shutdown_pg_pool  # noqa: E402
 from api.services.auth import get_jwks  # noqa: E402
 
 # Import services for startup
@@ -63,6 +64,7 @@ app.include_router(credit_requests.router)
 app.include_router(admin_credits.router)
 app.include_router(audits.router)
 app.include_router(analyses.router)
+app.include_router(ws_router)
 
 # ============================================================================
 # Startup and Shutdown Events
@@ -94,11 +96,20 @@ async def startup_event():
     except Exception as e:
         logger.error("supabase_connection_failed", extra={"error": str(e)})
 
+    # Initialize asyncpg pool for WebSocket LISTEN/NOTIFY
+    try:
+        db_url = settings.SUPABASE_DATABASE_URL or f"postgresql://postgres:{settings.SUPABASE_SECRET_KEY}@db.{settings.SUPABASE_URL.replace('https://', '').split('.')[0]}.supabase.co:5432/postgres"
+        await init_pg_pool(db_url)
+        logger.info("pg_pool_initialized", extra={"event": "startup"})
+    except Exception as e:
+        logger.warning("pg_pool_init_failed", extra={"error": str(e)})
+
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Cleanup resources on shutdown."""
     reset_supabase_client()
+    await shutdown_pg_pool()
 
 
 # ============================================================================

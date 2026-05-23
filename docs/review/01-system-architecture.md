@@ -156,4 +156,4 @@ Gateway:
 5. **SSRF protection**: Multi-layer validation before any outbound HTTP request
 6. **DEV_MODE flag**: Unlimited credits for development, blocked from production by config validator
 7. **Manual payment flow**: No IPG integration — users request credits, upload proof, admins approve
-8. **Polling for async results**: No WebSocket/SSE — frontend polls at 2s/5s intervals
+8. **Real-time updates**: WebSocket + Postgres LISTEN/NOTIFY replaces polling — zero polling in the stack (2026-05-23)

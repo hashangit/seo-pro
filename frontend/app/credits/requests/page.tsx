@@ -1,36 +1,26 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { getCreditRequests, submitPaymentProof, CreditRequestResponse } from "@/lib/api";
-import { logger, LogContext } from "@/lib/logger";
 import { formatDate } from "@/lib/utils";
 import {
-  ArrowLeft,
-  Loader2,
-  Clock,
-  CheckCircle,
-  XCircle,
-  Upload,
-  FileText,
-  DollarSign
+  ArrowLeft, Loader2, Clock, CheckCircle, XCircle, Upload,
+  FileText, DollarSign
 } from "lucide-react";
 import Link from "next/link";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
+  Dialog, DialogContent, DialogDescription,
+  DialogHeader, DialogTitle, DialogTrigger,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { useCreditRequests, useSubmitPaymentProof } from "@/hooks/use-queries";
+import type { CreditRequestResponse } from "@/lib/api";
 
-const statusConfig = {
+const statusConfig: Record<string, { icon: typeof Clock; color: string; label: string }> = {
   pending: { icon: Clock, color: "bg-yellow-500", label: "Pending" },
   invoice_sent: { icon: FileText, color: "bg-blue-500", label: "Invoice Sent" },
   proof_uploaded: { icon: Upload, color: "bg-purple-500", label: "Proof Uploaded" },
@@ -39,49 +29,30 @@ const statusConfig = {
 };
 
 export default function CreditRequestsPage() {
-  const [requests, setRequests] = useState<CreditRequestResponse[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isPending, startTransition] = useTransition();
+  const { data, isLoading } = useCreditRequests();
+  const submitProof = useSubmitPaymentProof();
   const [uploadDialogOpen, setUploadDialogOpen] = useState<string | null>(null);
   const [proofUrl, setProofUrl] = useState("");
   const [proofNotes, setProofNotes] = useState("");
 
-  const fetchRequests = async () => {
-    try {
-      const data = await getCreditRequests(50, 0);
-      setRequests(data.requests || []);
-    } catch (err) {
-      logger.error(LogContext.CREDITS, err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    startTransition(() => fetchRequests());
-  }, []);
+  const requests = data?.requests || [];
 
   const handleUploadProof = async (requestId: string) => {
     if (!proofUrl) return;
-
-    startTransition(async () => {
-      try {
-        await submitPaymentProof(requestId, {
-          proof_url: proofUrl,
-          notes: proofNotes || undefined,
-        });
-        setUploadDialogOpen(null);
-        setProofUrl("");
-        setProofNotes("");
-        await fetchRequests();
-      } catch (err) {
-        logger.error(LogContext.CREDITS, err);
-        alert(err instanceof Error ? err.message : "Failed to submit proof");
-      }
-    });
+    try {
+      await submitProof.mutateAsync({
+        requestId,
+        proof: { proof_url: proofUrl, notes: proofNotes || undefined },
+      });
+      setUploadDialogOpen(null);
+      setProofUrl("");
+      setProofNotes("");
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Failed to submit proof");
+    }
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-4xl">
@@ -128,8 +99,8 @@ export default function CreditRequestsPage() {
           </Card>
         ) : (
           <div className="space-y-4">
-            {requests.map((request) => {
-              const config = statusConfig[request.status];
+            {requests.map((request: CreditRequestResponse) => {
+              const config = statusConfig[request.status] || statusConfig.pending;
               const StatusIcon = config.icon;
 
               return (
@@ -177,10 +148,7 @@ export default function CreditRequestsPage() {
                           open={uploadDialogOpen === request.id}
                           onOpenChange={(open) => {
                             setUploadDialogOpen(open ? request.id : null);
-                            if (!open) {
-                              setProofUrl("");
-                              setProofNotes("");
-                            }
+                            if (!open) { setProofUrl(""); setProofNotes(""); }
                           }}
                         >
                           <DialogTrigger asChild>
@@ -219,16 +187,14 @@ export default function CreditRequestsPage() {
                               <Button
                                 className="w-full"
                                 onClick={() => handleUploadProof(request.id)}
-                                disabled={!proofUrl || isPending}
+                                disabled={!proofUrl || submitProof.isPending}
                               >
-                                {isPending ? (
+                                {submitProof.isPending ? (
                                   <>
                                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                                     Submitting...
                                   </>
-                                ) : (
-                                  "Submit Proof"
-                                )}
+                                ) : "Submit Proof"}
                               </Button>
                             </div>
                           </DialogContent>

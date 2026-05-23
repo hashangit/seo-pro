@@ -124,11 +124,11 @@ URL discovery for site audits:
 
 3. Worker completes:
    → SDK Worker writes results to audit_tasks
-   → (Optional) POST /task-update to orchestrator
-   → Orchestrator updates in-memory state + audits record
+   → DB trigger notifies Gateway via LISTEN/NOTIFY
+   → Gateway pushes to frontend via WebSocket
 
-4. Frontend polls: GET /audit/{id}
-   → Returns status + results when complete
+4. Frontend receives real-time updates:
+   WebSocket connection receives push events → TanStack Query cache updated
 ```
 
 ### DEV_MODE

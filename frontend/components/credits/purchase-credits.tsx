@@ -1,22 +1,22 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { AlertCircle, CreditCard, Loader2, CheckCircle } from "lucide-react";
-import { createCreditRequest, CREDIT_PRICING } from "@/lib/api";
-import { logger, LogContext } from "@/lib/logger";
+import { CREDIT_PRICING } from "@/lib/api";
+import { useCreateCreditRequest } from "@/hooks/use-queries";
 import Link from "next/link";
 
 export function PurchaseCredits() {
-  const [credits, setCredits] = useState<number>(64); // Default $8 minimum
+  const [credits, setCredits] = useState<number>(64);
   const [notes, setNotes] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<{ requestId: string; invoiceNumber: string } | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const createRequest = useCreateCreditRequest();
 
   const amount = credits / CREDIT_PRICING.CREDITS_PER_DOLLAR;
   const isValid = credits >= CREDIT_PRICING.CREDITS_PER_DOLLAR * CREDIT_PRICING.MINIMUM_TOPUP_DOLLARS;
@@ -25,18 +25,15 @@ export function PurchaseCredits() {
     if (!isValid) return;
 
     setError(null);
-    startTransition(async () => {
-      try {
-        const result = await createCreditRequest({ credits, notes: notes || undefined });
-        setSuccess({
-          requestId: result.id,
-          invoiceNumber: result.invoice_number || "Pending",
-        });
-      } catch (err) {
-        logger.error(LogContext.CREDITS, err);
-        setError(err instanceof Error ? err.message : "Failed to create request");
-      }
-    });
+    try {
+      const result = await createRequest.mutateAsync({ credits, notes: notes || undefined });
+      setSuccess({
+        requestId: result.id,
+        invoiceNumber: result.invoice_number || "Pending",
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create request");
+    }
   };
 
   if (success) {
@@ -166,9 +163,9 @@ export function PurchaseCredits() {
         <Button
           className="w-full"
           onClick={handleSubmit}
-          disabled={!isValid || isPending}
+          disabled={!isValid || createRequest.isPending}
         >
-          {isPending ? (
+          {createRequest.isPending ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               Creating Request...

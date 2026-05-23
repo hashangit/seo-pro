@@ -2,7 +2,7 @@
 
 ## Overview
 
-This document captures observations, patterns, and potential gaps identified during the comprehensive architecture review. Items are categorized by severity and type.
+This document captures observations, patterns, and potential gaps identified during the comprehensive architecture review. Items are categorized by severity and type. Resolved items are marked with ✓ and a resolution date.
 
 ---
 
@@ -16,7 +16,7 @@ This document captures observations, patterns, and potential gaps identified dur
 - **JWT verification**: WorkOS JWKS cached with thread-safe async lock, 15-min TTL
 - **CORS**: Explicit whitelist, not wildcard
 - **Security headers**: X-Frame-Options, X-Content-Type-Options, XSS-Protection, HSTS
-- **Non-root containers**: All 3 Dockerfiles run as non-root user
+- **Non-root containers**: All Dockerfiles run as non-root user
 - **Secret Management**: Google Secret Manager for all production secrets
 - **Input validation**: Control character stripping, length limits, MIME type validation
 
@@ -39,54 +39,88 @@ This document captures observations, patterns, and potential gaps identified dur
 
 ## Architectural Observations
 
-### 1. Dual Orchestration Paths (Medium)
+### 1. Dual Orchestration Paths (Medium) — ✓ RESOLVED (2026-05-23)
 
-The system has **two different audit orchestration paths**:
+~~The system has **two different audit orchestration paths**:~~
 
-| Path | Entry Point | Mechanism | State |
-|------|-------------|-----------|-------|
-| API Gateway | `api/routes/analyses.py` | `cloud_tasks.py` → SDK Worker directly | Active |
-| Orchestrator | `orchestrator/scheduler.py` | Cloud Tasks → HTTP_WORKER_URL / BROWSER_WORKER_URL | Legacy |
+~~| Path | Entry Point | Mechanism | State |~~
+~~|------|-------------|-----------|-------|~~
+~~| API Gateway | `api/routes/analyses.py` | `cloud_tasks.py` → SDK Worker directly | Active |~~
+~~| Orchestrator | `orchestrator/scheduler.py` | Cloud Tasks → HTTP_WORKER_URL / BROWSER_WORKER_URL | Legacy |~~
 
-The orchestrator references `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` which don't exist — there's only a unified SDK Worker. The API layer bypasses the orchestrator entirely. The orchestrator is bundled in the Gateway Docker image but doesn't appear to be actively used.
+~~The orchestrator references `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` which don't exist — there's only a unified SDK Worker. The API layer bypasses the orchestrator entirely. The orchestrator is bundled in the Gateway Docker image but doesn't appear to be actively used.~~
 
-**Impact**: Confusion about which code path is correct. The orchestrator has in-memory state that would be lost on restart.
+**Resolution**: The legacy orchestrator (`orchestrator/scheduler.py`) has been completely removed along with `deploy/Dockerfile.orchestrator`, `HTTP_WORKER_URL`, and `BROWSER_WORKER_URL`. All orchestration flows solely through API Gateway → Cloud Tasks → SDK Worker. The Dockerfile.gateway no longer copies any orchestrator code.
 
-### 2. In-Memory State in Orchestrator (Low)
+### 2. In-Memory State in Orchestrator (Low) — ✓ RESOLVED (2026-05-23)
 
-The orchestrator uses `_audit_state = {}` (a plain Python dict) to track in-flight audits. If the Cloud Run instance restarts or scales, this state is lost. The database has ground truth (tasks + audits), but the completion-detection logic counting from in-memory state would break.
+~~The orchestrator uses `_audit_state = {}` (a plain Python dict) to track in-flight audits. If the Cloud Run instance restarts or scales, this state is lost. The database has ground truth (tasks + audits), but the completion-detection logic counting from in-memory state would break.~~
 
-### 3. Worker Writes to DB Directly + Callback (Low)
+**Resolution**: Removed with the orchestrator. All state is now in Supabase tables (`audits`, `audit_tasks`, `analyses`). No in-memory tracking exists anywhere in the system.
 
-The SDK Worker writes results directly to `audit_tasks` in Supabase AND can optionally POST to the orchestrator's `/task-update` endpoint. This dual-path result reporting is partially redundant.
+### 3. Worker Writes to DB Directly + Callback (Low) — ✓ RESOLVED (2026-05-23)
 
-### 4. No WebSocket/SSE for Real-Time Updates (Low)
+~~The SDK Worker writes results directly to `audit_tasks` in Supabase AND can optionally POST to the orchestrator's `/task-update` endpoint. This dual-path result reporting is partially redundant.~~
 
-Frontend polls at 2-second intervals for audit status. For a platform with scale-to-zero workers, polling is pragmatic, but for large audits with many pages, this creates unnecessary load. WebSocket or Server-Sent Events could reduce this.
+**Resolution**: No `/task-update` endpoint exists anymore. The SDK Worker writes results exclusively to Supabase tables. Single source of truth.
 
-### 5. No Global State Management in Frontend (Neutral)
+### 4. No WebSocket/SSE for Real-Time Updates (Low) — ✓ RESOLVED (2026-05-23)
 
-The frontend uses no state management library — purely React `useState`/`useEffect` plus WorkOS auth hooks. This keeps things simple and works well for the current feature set. Only worth reconsidering if the app grows significantly more complex.
+~~Frontend polls at 2-second intervals for audit status. For a platform with scale-to-zero workers, polling is pragmatic, but for large audits with many pages, this creates unnecessary load. WebSocket or Server-Sent Events could reduce this.~~
+
+**Resolution**: WebSocket + Postgres LISTEN/NOTIFY replaces HTTP polling. Architecture:
+
+```
+Worker writes to Supabase
+  → DB trigger: pg_notify('audit_changes', payload)
+    → FastAPI Gateway: asyncpg LISTEN on WebSocket connect
+      → wss://gateway sends events to frontend
+        → TanStack Query cache updated via setQueryData
+```
+
+New files: `api/routes/ws.py`, `api/core/ws_auth.py`, `frontend/hooks/use-audit-stream.ts`, `supabase/migrations/002_audit_change_trigger.sql`. Zero polling anywhere in the stack. WorkOS remains the sole auth system (JWT passed as WebSocket query parameter).
+
+### 5. No Global State Management in Frontend (Neutral) — ✓ RESOLVED (2026-05-23)
+
+~~The frontend uses no state management library — purely React `useState`/`useEffect` plus WorkOS auth hooks. This keeps things simple and works well for the current feature set. Only worth reconsidering if the app grows significantly more complex.~~
+
+**Resolution**: TanStack Query (`@tanstack/react-query`) added as the standard data-fetching and server-state layer. Provides:
+- Query deduplication (e.g., `CreditBalance` header and `CreditsHistoryPage` share a cache)
+- Declarative `refetchInterval` for polling (conditional, auto-stops on completion)
+- Mutation-based operations with automatic cache invalidation
+- Standardized loading/error states across all components
+
+Custom hooks in `frontend/hooks/use-queries.ts` wrap all `lib/api.ts` functions. No global store is needed for local/UI state — `useState` remains appropriate for form state, dialog state, etc.
 
 ### 6. Payment Gateway Pending (Medium)
 
 The credit purchase flow uses a manual payment process (request → invoice → proof upload → admin approval). The README and code comments reference an impending IPG (International Payment Gateway) integration to replace this. This is a known and tracked gap.
 
-### 7. Supabase JS Client Unused in Frontend (Low)
+### 7. Supabase JS Client Unused in Frontend (Low) — ✓ RESOLVED (2026-05-23)
 
-The frontend has `lib/supabase.ts` with a Supabase JS client and TypeScript type definitions, but all data access goes through the FastAPI backend. The Supabase client appears to be set up but not actively used in components.
+~~The frontend has `lib/supabase.ts` with a Supabase JS client and TypeScript type definitions, but all data access goes through the FastAPI backend. The Supabase client appears to be set up but not actively used in components.~~
 
-### 8. Docker Compose References Legacy HTTP Worker (Low)
+**Resolution**: `frontend/lib/supabase.ts` deleted. `@supabase/supabase-js` removed from frontend dependencies. Supabase env vars (`NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`) removed from `docker-compose.yml` and `docs/DEPLOYMENT.md`. All data access is routed exclusively through FastAPI.
 
-`docker-compose.yml` includes an `http-worker` service that builds `Dockerfile.http-worker`, but no such Dockerfile exists in `deploy/`. This service targets the old worker architecture.
+### 8. Docker Compose References Legacy HTTP Worker (Low) — ✓ RESOLVED (2026-05-23)
+
+~~`docker-compose.yml` includes an `http-worker` service that builds `Dockerfile.http-worker`, but no such Dockerfile exists in `deploy/`. This service targets the old worker architecture.~~
+
+**Resolution**: The `http-worker` service was already removed from `docker-compose.yml` in the prior cleanup. Only `gateway` and `frontend` services remain.
 
 ### 9. No Dedicated Test Suite for Workers (Low)
 
-The CI pipeline runs `pytest api/` which covers the gateway. The SDK worker (`workers/sdk_worker.py`) and orchestrator (`orchestrator/scheduler.py`) don't appear to have dedicated test coverage.
+The CI pipeline runs `pytest api/` which covers the gateway. The SDK worker (`workers/sdk_worker.py`) doesn't have dedicated test coverage.
 
-### 10. Cloud Build vs GitHub Actions Overlap (Low)
+### 10. Cloud Build vs GitHub Actions Overlap (Low) — ✓ RESOLVED (2026-05-23)
 
-Both `cloudbuild.yaml` (GCP Cloud Build) and `.github/workflows/ci.yml` (GitHub Actions) exist. The CI file runs tests/lints/builds, while Cloud Build handles production deployments. This is standard but worth noting that there are two CI systems in play.
+~~Both `cloudbuild.yaml` (GCP Cloud Build) and `.github/workflows/ci.yml` (GitHub Actions) exist. The CI file runs tests/lints/builds, while Cloud Build handles production deployments. This is standard but worth noting that there are two CI systems in play.~~
+
+**Resolution**: The two pipelines serve complementary purposes:
+- **ci.yml** (GitHub Actions): CI layer — tests, lint, typecheck, security scanning (Trivy), Docker build smoke tests (no push). Runs on PRs.
+- **cloudbuild.yaml** (Cloud Build): CD layer — builds, pushes to Artifact Registry, deploys to Cloud Run. Runs on push to main.
+
+Overlap is limited to Docker image builds (ci.yml verifies the build, cloudbuild.yaml deploys it). The stale orchestrator build step was removed from ci.yml (`ruff check orchestrator/` and `Dockerfile.orchestrator` build).
 
 ---
 
@@ -106,14 +140,18 @@ Both `cloudbuild.yaml` (GCP Cloud Build) and `.github/workflows/ci.yml` (GitHub 
 
 ### Empty or Minimal Directories
 
-- `.commandcode/taste/` — Empty (taste preferences not yet learned)
+- `.commandcode/taste/` — Now populated with learned preferences (architecture: route through FastAPI, real-time: use LISTEN/NOTIFY)
+- `.commandcode/plan/` — Contains implementation plans (e.g., `cleanup-findings-5-7-10.md`)
 - `docs/plans/` — Contains planning documents
 - `pdf/` — Single reference file, could be consolidated into `seo/references/`
 
-### Files No Longer Referenced
+### Files Removed Since Review
 
-- `orchestrator/scheduler.py` references `HTTP_WORKER_URL`/`BROWSER_WORKER_URL` — these env vars aren't set in any deployment config
-- `docker-compose.yml` references `Dockerfile.http-worker` — file doesn't exist
+- `orchestrator/scheduler.py` — Legacy orchestrator with in-memory state (removed 2026-05-23)
+- `deploy/Dockerfile.orchestrator` — No longer needed (removed 2026-05-23)
+- `frontend/lib/supabase.ts` — Dead Supabase client (removed 2026-05-23)
+- `frontend/lib/api-client.ts` — Unused server-side API client, superseded by `lib/api.ts` (removed 2026-05-23)
+- `deploy/Dockerfile.http-worker` — Never existed (legacy reference already removed from docker-compose)
 
 ### Documentation Files Present
 
@@ -125,12 +163,22 @@ Both `cloudbuild.yaml` (GCP Cloud Build) and `.github/workflows/ci.yml` (GitHub 
 
 ---
 
-## Summary
+## Summary of Resolutions
 
-The codebase is well-structured with clear separation of concerns. The dual-mode architecture (SaaS + CLI) is elegantly handled through shared filesystem-based skills and agents. Security is a strength with defense-in-depth across all layers. The primary areas for architectural attention are:
+| Finding | Status | Resolution Date |
+|---------|--------|----------------|
+| 1. Dual Orchestration Paths | ✓ Resolved | 2026-05-23 |
+| 2. In-Memory State | ✓ Resolved | 2026-05-23 |
+| 3. Worker Dual-Result Reporting | ✓ Resolved | 2026-05-23 |
+| 4. No Real-Time Updates | ✓ Resolved | 2026-05-23 |
+| 5. No Global State Management | ✓ Resolved | 2026-05-23 |
+| 6. Payment Gateway Pending | Open | — |
+| 7. Supabase Client Unused | ✓ Resolved | 2026-05-23 |
+| 8. Legacy HTTP Worker Reference | ✓ Resolved | 2026-05-23 |
+| 9. No Worker Test Suite | Open | — |
+| 10. CI/CD Overlap | ✓ Resolved | 2026-05-23 |
 
-1. **Clean up legacy orchestrator**: Either fully integrate the orchestrator with the unified SDK worker path, or remove it and rely solely on the API gateway → Cloud Tasks → SDK Worker path
-2. **Complete IPG integration**: Replace the manual payment flow with automated payment processing
-3. **Remove/update legacy references**: HTTP worker Dockerfile reference in docker-compose, old worker URL references in orchestrator
-4. **Consider adding worker tests**: The SDK worker currently has no dedicated test coverage
-5. **Consider real-time updates**: WebSocket or SSE for audit progress instead of polling
+### Open Items
+
+- **#6 Payment Gateway**: Manual payment flow (request → invoice → proof → admin approval) is functional but manual. IPG integration would automate this. Known and tracked gap.
+- **#9 Worker Test Suite**: The SDK worker has no dedicated tests. Gateway tests (`pytest api/`) exist. Worth adding worker integration tests as the system grows.

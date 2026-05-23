@@ -60,7 +60,7 @@ async for message in query(
 
 On completion:
 1. Worker writes results directly to `audit_tasks` table in Supabase (via `update_task_status()`)
-2. Worker can optionally POST to orchestrator's `/task-update` endpoint
+2. ~~Worker can optionally POST to orchestrator's `/task-update` endpoint~~ — Callback removed (2026-05-23). Worker writes exclusively to Supabase.
 
 ### Key Dependencies
 
@@ -89,47 +89,11 @@ User: appuser (non-root, uid 10001)
 Healthcheck: HTTP GET /health
 ```
 
-## Orchestrator (`orchestrator/scheduler.py`)
+## ~~Orchestrator (`orchestrator/scheduler.py`)~~ — REMOVED (2026-05-23)
 
-The legacy orchestrator is bundled into the Gateway Docker image but represents an alternative orchestration path using Google Cloud Tasks.
+The legacy orchestrator has been completely removed. It was an alternative orchestration path using Google Cloud Tasks with in-memory state (`_audit_state = {}`), but the API layer already bypassed it by dispatching directly to the SDK Worker. The orchestrator referenced `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` which no longer exist.
 
-### Key Characteristics
-
-- **In-memory state**: Uses a Python dict `_audit_state` for tracking in-flight audits
-- **6 hardcoded tasks**: technical, content, schema, sitemap, programmatic, visual
-- **References old worker URLs**: HTTP_WORKER_URL, BROWSER_WORKER_URL (predates unified SDK worker)
-- **Cloud Tasks integration**: Uses `google-cloud-tasks` library v2 API
-- **Idempotency**: Supports `idempotency_key` to prevent duplicate audit submissions
-
-### Orchestration Flow (Orchestrator Path)
-
-```
-1. POST /submit → submit_audit()
-   - SSRF validation
-   - Idempotency check
-   - Create audits record (status=queued)
-
-2. submit_audit_job() creates 6 Cloud Tasks
-   - Each task → POST to worker URL
-   - 3 retries with exponential backoff
-   - 5s scheduling delay
-
-3. Cloud Tasks delivers to worker endpoints
-   - Worker processes analysis
-   - Worker calls POST /task-update on orchestrator
-
-4. POST /task-update → update_audit_state_on_task_completion()
-   - Increments completed_tasks in _audit_state
-   - When all complete → update audits status=completed
-
-5. Optional direct DB path:
-   - Workers can update audit_tasks directly in Supabase
-   - Orchestrator also receives task-update callbacks
-```
-
-### Architectural Note
-
-The orchestrator references `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` but the deployment config (`cloudbuild-gateway.yaml`) only sets `SDK_WORKER_URL`. The API layer (`api/services/cloud_tasks.py`) bypasses the orchestrator and submits tasks directly to the SDK Worker. This suggests the orchestrator is in a transitional/legacy state.
+All orchestration now flows through: **API Gateway → Cloud Tasks → SDK Worker → Supabase**. The SDK Worker writes results exclusively to Supabase (no `/task-update` callback endpoint).
 
 ## Scripts (`scripts/`)
 

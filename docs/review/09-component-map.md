@@ -11,18 +11,28 @@ frontend/middleware.ts
 frontend/lib/auth/index.ts
   └─ @workos-inc/authkit-nextjs
 
-frontend/lib/api-client.ts (server-side)
-  ├─ frontend/lib/auth (withAuth)
+frontend/lib/api.ts (client-side, universal)
   └─ NEXT_PUBLIC_API_URL → Gateway
 
-frontend/lib/api.ts (client-side)
-  └─ NEXT_PUBLIC_API_URL → Gateway
+frontend/lib/query-client.ts
+  └─ @tanstack/react-query
 
 frontend/hooks/use-auth.ts
   └─ @workos-inc/authkit-nextjs (useAuth, useAccessToken)
 
+frontend/hooks/use-queries.ts
+  ├─ frontend/lib/api.ts
+  ├─ frontend/hooks/use-auth.ts
+  └─ @tanstack/react-query
+
+frontend/hooks/use-audit-stream.ts
+  ├─ frontend/hooks/use-auth.ts (getAccessToken)
+  ├─ @tanstack/react-query (useQueryClient)
+  └─ NEXT_PUBLIC_API_URL → Gateway WebSocket
+
 frontend/app/**/page.tsx (Server Components)
-  ├─ frontend/lib/api-client.ts → Gateway
+  ├─ @workos-inc/authkit-nextjs (withAuth)
+  ├─ frontend/lib/api.ts → Gateway
   ├─ frontend/components/*
   └─ frontend/lib/utils.ts
 
@@ -133,14 +143,20 @@ workers/sdk_worker.py
   ├─ api/config.py
   ├─ api/utils/url_validator.py
   ├─ claude_agent_sdk (query, ClaudeAgentOptions)
-  ├─ supabase (update_task_status)
+  ├─ supabase (results persistence)
   └─ httpx, beautifulsoup4 (fallback, dev only)
 
-═══ Orchestrator (Python, legacy) ═══
-orchestrator/scheduler.py
+═══ WebSocket Real-Time (Python) ═══
+api/routes/ws.py
+  ├─ asyncpg (connection pool + LISTEN/NOTIFY)
+  ├─ api/core/ws_auth.py (WorkOS JWT from WS query params)
+  └─ api/config.py
+
+═══ ~~Orchestrator (Python)~~ — REMOVED 2026-05-23 ═══
+~~orchestrator/scheduler.py
   ├─ api/utils/url_validator.py
   ├─ google-cloud-tasks
-  └─ supabase
+  └─ supabase~~
 
 ═══ SEO Engine (Markdown-based) ═══
 seo/SKILL.md
@@ -189,9 +205,9 @@ web-search/src/index.ts
   └─ @modelcontextprotocol/sdk
 
 ═══ Deploy ═══
-deploy/Dockerfile.gateway → api/ + orchestrator/
+deploy/Dockerfile.gateway → api/
 deploy/Dockerfile.sdk-worker → workers/sdk_worker.py + api/utils/ + api/config.py + skills/ + agents/ + scripts/
-deploy/Dockerfile.orchestrator → orchestrator/scheduler.py
+~~deploy/Dockerfile.orchestrator → orchestrator/scheduler.py~~ — REMOVED 2026-05-23
 ```
 
 ## Service Communication Map

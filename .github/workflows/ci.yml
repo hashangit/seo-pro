@@ -36,7 +36,7 @@ jobs:
       - name: Run linter
         run: |
           pip install ruff
-          ruff check api/ workers/ orchestrator/ --output-format=github
+          ruff check api/ workers/ --output-format=github
 
       - name: Run type checker
         run: |
@@ -172,10 +172,4 @@ jobs:
           push: false
           tags: seo-pro/sdk-worker:test
 
-      - name: Build Orchestrator image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: ./deploy/Dockerfile.orchestrator
-          push: false
-          tags: seo-pro/orchestrator:test
+

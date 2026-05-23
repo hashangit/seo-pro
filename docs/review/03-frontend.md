@@ -10,12 +10,14 @@ The frontend is a **Next.js 15** application using the **App Router** with **Typ
 |------|-------|---------|
 | `frontend/middleware.ts` | ~20 | WorkOS AuthKit middleware wrapping all routes |
 | `frontend/lib/api.ts` | ~700 | Client-side API client (takes token param) |
-| `frontend/lib/api-client.ts` | ~120 | Server-side API client (uses withAuth) |
-| `frontend/lib/auth/index.ts` | ~30 | Auth barrel exports |
-| `frontend/lib/supabase.ts` | ~40 | Supabase client + TypeScript type defs |
+| `frontend/hooks/use-auth.ts` | ~60 | Client auth hook wrapping WorkOS useAuth |
+| `frontend/hooks/use-queries.ts` | ~100 | TanStack Query hooks for all API data fetching |
+| `frontend/hooks/use-audit-stream.ts` | ~70 | WebSocket hook for real-time audit/analysis updates |
+| `frontend/lib/query-client.ts` | ~30 | TanStack QueryClient factory with defaults |
+| `frontend/components/providers.tsx` | ~25 | Unified QueryClientProvider + AuthKitProvider wrapper |
 | `frontend/lib/utils.ts` | ~30 | cn(), formatCredits(), formatCurrency(), formatDate() |
 | `frontend/lib/logger.ts` | ~50 | Structured logger with context constants |
-| `frontend/hooks/use-auth.ts` | ~60 | Client auth hook wrapping WorkOS useAuth |
+| `frontend/lib/supabase.ts` | ~~REMOVED~~ | Dead Supabase client — all data now exclusively through FastAPI |
 
 ### Route Map
 
@@ -30,9 +32,9 @@ The frontend is a **Next.js 15** application using the **App Router** with **Typ
 | `/auth/logout` | Client page | Yes | Logout confirmation |
 | `/dashboard` | Server page | Yes | Credit balance + recent audits (SSR) |
 | `/audits` | Server page | Yes | Paginated audit list (status filter) |
-| `/audit/[id]` | Client page | Yes | Audit results with 2s polling |
+| `/audit/[id]` | Client page | Yes | Audit results with WebSocket real-time updates |
 | `/analyses` | Client page | Yes | Analysis list with status badges |
-| `/analysis/[id]` | Client page | Yes | Analysis results with 5s polling |
+| `/analysis/[id]` | Client page | Yes | Analysis results with WebSocket real-time updates |
 | `/credits` | Server page | Yes | Purchase credits (manual payment flow) |
 | `/credits/history` | Client page | Yes | Transaction history |
 | `/credits/requests` | Client page | Yes | Credit request list + proof upload |
@@ -55,7 +57,7 @@ Sign-out:
   signOutAction() (server action) → clear WorkOS session → redirect /
 
 Server Components:
-  withAuth() → get access token → api-client.ts adds Bearer header
+  withAuth() → get access token → api.ts adds Bearer header
 
 Client Components:
   useAuthUser() hook → getAccessToken() → api.ts receives token param
@@ -102,19 +104,20 @@ The most complex frontend component, handling all three analysis modes:
 
 ### State Management
 
-No global state library. State handled through:
-- **Server state**: Data fetched in Server Components via `api-client.ts`, passed as props
-- **Client state**: `useState` / `useEffect` in each component
+State handled through:
+- **Server state**: TanStack Query via `hooks/use-queries.ts` — declarative `useQuery`/`useMutation` hooks wrapping all `lib/api.ts` functions. Caching with stale times (30s for balance, 5s for audits). Mutations auto-invalidate related queries.
+- **Client state**: `useState` for local/UI state (form inputs, dialog open/close, selection sets)
 - **Auth state**: WorkOS `useAuth()` + `useAccessToken()` via `useAuthUser()` wrapper
-- **Optimistic updates**: `useTransition()` + `useOptimistic()` for form submissions
+- **Optimistic updates**: `useMutation` with `onMutate` for instant feedback
 - **URL state**: `searchParams` for filters/pagination
-- **Polling**: `setInterval` in `useEffect` (2s for audits, 5s for analyses, auto-stop on completion)
+- **Real-time updates**: WebSocket via `use-audit-stream.ts` — receives push events from Postgres LISTEN/NOTIFY, updates query cache via `queryClient.setQueryData()`. Eliminates all polling.
 
-### Two API Client Files
+### Data Fetching Architecture
 
-- **`lib/api.ts`** (client-side): Takes optional `token` parameter. Client components get token via `useAuthUser().getAccessToken()`. Used in AnalysisSelector, AuditForm, CreditRequestsPage, etc.
+All data flows through `lib/api.ts` — a single unified API client used by both server and client components. Server components call API functions directly with `accessToken` from `withAuth()`. Client components use TanStack Query hooks from `hooks/use-queries.ts` which wrap the same API functions.
 
-- **`lib/api-client.ts`** (server-side): Uses `withAuth()` from WorkOS to auto-inject token. Used in Server Components (DashboardPage, AuditsPage, AdminCreditsPage, etc.)
+- **`lib/api.ts`** (universal): Takes optional `token` parameter. Used by both server components (directly) and client components (via TanStack Query hooks).
+- ~~`lib/api-client.ts`~~ — **REMOVED (2026-05-23)**. Superseded by `lib/api.ts` which serves both server and client contexts.
 
 ### API Endpoints Consumed
 

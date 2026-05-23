@@ -32,14 +32,13 @@ Items identified during the Feb 2026 SEO research audit that require additional 
   Requires: DLQ configuration in Cloud Tasks, monitoring/alerting for DLQ depth,
   replay mechanism for failed tasks.
 
-- [ ] **Real-time audit updates via WebSockets** (Priority: Low)
-  Replace 2-second polling with Supabase Realtime subscriptions for audit status updates.
-  Reduces unnecessary API calls and provides immediate feedback to users.
+- [x] **Real-time audit updates via WebSockets** (Priority: Low) — ~~DONE (2026-05-23)~~
+  Replaced 2-second polling with WebSocket + Postgres LISTEN/NOTIFY.
+  See `api/routes/ws.py`, `frontend/hooks/use-audit-stream.ts`, `supabase/migrations/002_audit_change_trigger.sql`.
 
-- [ ] **Research: In-memory orchestrator state persistence** (Priority: Low)
-  Current `_audit_state` in orchestrator is lost on restart. Need to research
-  how Claude Agent SDK workflow integrates and determine best persistence strategy
-  (Redis vs Supabase vs other).
+- [x] ~~**Research: In-memory orchestrator state persistence** (Priority: Low)~~ — NO LONGER RELEVANT
+  Legacy orchestrator (`orchestrator/scheduler.py`) has been completely removed (2026-05-23).
+  All state is now in Supabase tables. No in-memory state exists anywhere in the system.
 
 ---
 
@@ -55,11 +54,10 @@ Non-critical improvements identified during architectural assessment. None are b
   Recommendation: Use FastAPI's `Depends()` for cleaner dependency injection.
   Impact: Code maintainability, testability. No functional impact.
 
-- [ ] **Remove deprecated worker configuration** (Priority: Low)
-  `config.py` still references `HTTP_WORKER_URL`, `BROWSER_WORKER_URL`, `ORCHESTRATOR_URL`
-  which are replaced by `SDK_WORKER_URL`. Clean up dead code.
-  Files: `api/config.py`, `orchestrator/scheduler.py`
-  Impact: Code clarity. No functional impact.
+- [x] ~~**Remove deprecated worker configuration** (Priority: Low)~~ — DONE (2026-05-23)
+  `HTTP_WORKER_URL`, `BROWSER_WORKER_URL`, and `ORCHESTRATOR_URL` removed from `api/config.py`.
+  Legacy orchestrator (`orchestrator/scheduler.py`) completely removed.
+  Files: `api/config.py`, `deploy/Dockerfile.orchestrator` (deleted)
 
 - [ ] **Add request correlation IDs for tracing** (Priority: Medium)
   Add unique request IDs to API logs for debugging distributed requests.
@@ -81,10 +79,9 @@ Non-critical improvements identified during architectural assessment. None are b
 
 ### Frontend (Next.js/TypeScript)
 
-- [ ] **Consider React Query for API data fetching** (Priority: Low)
-  Current: 700-line `lib/api.ts` with manual fetch functions.
-  React Query would provide: caching, deduplication, retry logic, optimistic updates.
-  Impact: Better UX, less code. Not urgent at current scale.
+- [x] ~~**Consider React Query for API data fetching** (Priority: Low)~~ — DONE (2026-05-23)
+  TanStack Query (`@tanstack/react-query`) implemented as the standard data-fetching layer.
+  See `frontend/hooks/use-queries.ts`, `frontend/lib/query-client.ts`, `frontend/components/providers.tsx`.
 
 - [ ] **Improve token refresh strategy** (Priority: Low)
   Current: 60-second polling interval for token refresh.
@@ -118,4 +115,4 @@ These are intentional design decisions, not TODOs:
 
 ---
 
-*Last updated: February 2026*
+*Last updated: 2026-05-23*

@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { getAnalysisStatus, ANALYSIS_TYPE_LABELS, type AnalysisResult } from "@/lib/api";
+import { useAnalysisStatus } from "@/hooks/use-queries";
+import { useAnalysisStream } from "@/hooks/use-audit-stream";
+import { ANALYSIS_TYPE_LABELS } from "@/lib/api";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -21,35 +22,10 @@ export default function AnalysisResultsPage() {
   const router = useRouter();
   const analysisId = params.id as string;
 
-  const [analysis, setAnalysis] = useState<AnalysisResult | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { data: analysis, isLoading, error } = useAnalysisStatus(analysisId);
+  useAnalysisStream(analysisId, !isLoading && analysis?.status !== "completed" && analysis?.status !== "failed" && analysis?.status !== "cancelled");
 
-  useEffect(() => {
-    const fetchAnalysis = async () => {
-      try {
-        const result = await getAnalysisStatus(analysisId);
-        setAnalysis(result);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to load analysis");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchAnalysis();
-
-    // Poll for updates if processing
-    const interval = setInterval(() => {
-      if (analysis?.status === "processing" || analysis?.status === "pending") {
-        fetchAnalysis();
-      }
-    }, 5000);
-
-    return () => clearInterval(interval);
-  }, [analysisId, analysis?.status]);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -64,7 +40,7 @@ export default function AnalysisResultsPage() {
           <CardContent className="pt-6">
             <div className="flex items-center gap-2 text-destructive">
               <AlertCircle className="h-5 w-5" />
-              <p>{error || "Analysis not found"}</p>
+              <p>{error instanceof Error ? error.message : "Analysis not found"}</p>
             </div>
             <Button
               variant="outline"
@@ -163,7 +139,6 @@ export default function AnalysisResultsPage() {
           {/* Results */}
           {analysis.status === "completed" && analysis.results_json && (
             <div className="space-y-6">
-              {/* Score (if available) */}
               {typeof analysis.results_json.score === 'number' && (
                 <div className="text-center">
                   <div className="text-5xl font-bold text-primary">
@@ -173,7 +148,6 @@ export default function AnalysisResultsPage() {
                 </div>
               )}
 
-              {/* Issues */}
               {Array.isArray(analysis.results_json.issues) && analysis.results_json.issues.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 font-semibold text-destructive">
@@ -191,7 +165,6 @@ export default function AnalysisResultsPage() {
                 </div>
               )}
 
-              {/* Warnings */}
               {Array.isArray(analysis.results_json.warnings) && analysis.results_json.warnings.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 font-semibold text-yellow-600">
@@ -209,7 +182,6 @@ export default function AnalysisResultsPage() {
                 </div>
               )}
 
-              {/* Passes */}
               {Array.isArray(analysis.results_json.passes) && analysis.results_json.passes.length > 0 && (
                 <div>
                   <h3 className="mb-3 flex items-center gap-2 font-semibold text-green-600">
@@ -227,7 +199,6 @@ export default function AnalysisResultsPage() {
                 </div>
               )}
 
-              {/* Recommendations */}
               {Array.isArray(analysis.results_json.recommendations) && analysis.results_json.recommendations.length > 0 && (
                 <div>
                   <h3 className="mb-3 font-semibold">Recommendations</h3>
@@ -239,7 +210,6 @@ export default function AnalysisResultsPage() {
                 </div>
               )}
 
-              {/* Raw Results (collapsible for debugging) */}
               <details className="mt-6">
                 <summary className="cursor-pointer text-sm text-muted-foreground hover:text-foreground">
                   View raw results

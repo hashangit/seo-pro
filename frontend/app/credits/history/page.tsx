@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
 import { Button } from "@/components/ui/button";
-import { getCreditHistory } from "@/lib/api";
-import { logger, LogContext } from "@/lib/logger";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/utils";
-import { ArrowLeft, Minus, Plus, Loader2 } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Loader2, CreditCard } from "lucide-react";
 import Link from "next/link";
+import { useCreditHistory, useCreditBalance } from "@/hooks/use-queries";
 
 type Transaction = {
   id: string;
@@ -20,32 +18,10 @@ type Transaction = {
 };
 
 export default function CreditsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [balance, setBalance] = useState<number | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const { data: history, isLoading, refetch, isFetching } = useCreditHistory();
+  const { data: balance } = useCreditBalance();
 
-  const fetchHistory = async () => {
-    try {
-      const data = await getCreditHistory();
-      setTransactions(data.transactions || []);
-      setBalance(
-        data.transactions?.[0]?.balance_after || 0
-      );
-    } catch (err) {
-      logger.error(LogContext.CREDITS, err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    startTransition(() => fetchHistory());
-  }, []);
-
-  const handleRefresh = () => {
-    startTransition(() => fetchHistory());
-  };
+  const transactions = (history?.transactions || []) as Transaction[];
 
   const getTransactionIcon = (type: string) => {
     if (type === "purchase" || type === "bonus") {
@@ -61,15 +37,14 @@ export default function CreditsPage() {
     return "secondary";
   };
 
-  if (loading && transactions.length === 0) {
+  if (isLoading) {
     return (
       <div className="container mx-auto px-4 py-12">
         <div className="mx-auto max-w-4xl">
           <div className="mb-6 flex items-center gap-4">
             <Link href="/">
               <Button variant="ghost" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
             </Link>
             <h1 className="text-3xl font-bold">Credit History</h1>
@@ -91,29 +66,19 @@ export default function CreditsPage() {
           <div>
             <Link href="/">
               <Button variant="ghost" size="sm">
-                <ArrowLeft className="mr-2 h-4 w-4" />
-                Back
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Button>
             </Link>
             <h1 className="text-3xl font-bold">Credits</h1>
           </div>
           <div className="flex items-center gap-4">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isPending}
-            >
-              {isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                "Refresh"
-              )}
+            <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+              {isFetching ? <Loader2 className="h-4 w-4 animate-spin" /> : "Refresh"}
             </Button>
-            {balance !== null && (
+            {typeof balance?.balance === "number" && (
               <div className="text-right">
                 <p className="text-sm text-muted-foreground">Current Balance</p>
-                <p className="text-2xl font-bold">{balance} credits</p>
+                <p className="text-2xl font-bold">{balance.formatted || `${balance.balance} credits`}</p>
               </div>
             )}
           </div>
@@ -162,16 +127,19 @@ export default function CreditsPage() {
           </Card>
         </div>
 
-        {/* Transaction History */}
         <Card>
           <CardHeader>
             <CardTitle>Transaction History</CardTitle>
           </CardHeader>
           <CardContent>
             {transactions.length === 0 ? (
-              <p className="py-8 text-center text-muted-foreground">
-                No transactions yet. Purchase credits to get started!
-              </p>
+              <div className="py-12 text-center">
+                <CreditCard className="mx-auto h-12 w-12 text-muted-foreground" />
+                <p className="mt-4 text-muted-foreground">No transactions yet. Purchase credits to get started!</p>
+                <Link href="/credits">
+                  <Button className="mt-4">Purchase Credits</Button>
+                </Link>
+              </div>
             ) : (
               <div className="space-y-1">
                 {transactions.map((transaction) => (

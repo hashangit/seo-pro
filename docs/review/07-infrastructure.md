@@ -48,21 +48,21 @@ Machine type: `E2_HIGHCPU_8`, timeout: 30 minutes
 
 | Dockerfile | Base Image | Key Contents | Entrypoint |
 |------------|------------|-------------|------------|
-| `Dockerfile.gateway` | python:3.11-slim (multi-stage) | api/ + orchestrator/ | gunicorn -w 4 |
+| `Dockerfile.gateway` | python:3.11-slim (multi-stage) | api/ | gunicorn -w 4 |
 | `Dockerfile.sdk-worker` | playwright/python:v1.48.0-jammy | worker + skills + agents + scripts + playwright browsers | gunicorn -w 1 |
-| `Dockerfile.orchestrator` | python:3.11-slim | scheduler.py | gunicorn -w 1 |
+| ~~`Dockerfile.orchestrator`~~ | — | REMOVED 2026-05-23 | — |
 
 All three run as non-root user, expose port 8080, include health checks.
 
 ### Docker Compose (Local Dev)
 
-Three services defined in `docker-compose.yml`:
+Two services defined in `docker-compose.yml`:
 
 ```
 gateway (8080): Dockerfile.gateway + volume mounts for live reload
-http-worker (8081): Dockerfile.http-worker (legacy, not in deploy/)
 frontend (3000): node:20-alpine with npm install + npm run dev
 ```
+~~http-worker service~~ — **REMOVED** (Dockerfile.http-worker never existed, legacy reference cleaned up)
 
 ## Environment Configuration
 
@@ -72,7 +72,7 @@ Critical environment variables (from `.env.example`):
 |----------|---------|-------------|
 | `SUPABASE_URL` | Database endpoint | All services |
 | `SUPABASE_SECRET_KEY` | Service role key (bypasses RLS) | Gateway, Worker |
-| `SUPABASE_PUBLISHABLE_KEY` | Anon key (client-safe) | Frontend |
+| `SUPABASE_DATABASE_URL` | Direct PostgreSQL connection (LISTEN/NOTIFY) | Gateway |
 | `WORKOS_CLIENT_ID` | OAuth client ID | Gateway, Frontend |
 | `WORKOS_AUDIENCE` | JWT audience (`api.workos.com`) | Gateway |
 | `ANTHROPIC_AUTH_TOKEN` | Z.AI API key | SDK Worker |
@@ -120,3 +120,4 @@ Optional Redis-based distributed rate limiting. Falls back to in-memory if `REDI
 | **Vercel** | Frontend hosting | Yes |
 | **Google Cloud** | Compute + tasks + secrets | Yes |
 | **GitHub** | Source control + CI/CD | No (recoverable) |
+verable) |

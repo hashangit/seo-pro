@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { AuthKitProvider } from "@workos-inc/authkit-nextjs/components";
 import "./globals.css";
 import { Header } from "@/components/layout/header";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { Providers } from "@/components/providers";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -20,7 +20,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthKitProvider>
+        <Providers>
           <div className="min-h-screen flex flex-col">
             <Header />
             <main className="flex-1">
@@ -34,7 +34,7 @@ export default function RootLayout({
               </div>
             </footer>
           </div>
-        </AuthKitProvider>
+        </Providers>
       </body>
     </html>
   );

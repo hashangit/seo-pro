@@ -1,13 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
-  listAnalyses,
   ANALYSIS_TYPE_LABELS,
   type AnalysisResult,
-  type AnalysisListResponse,
 } from "@/lib/api";
+import { useAnalysesList } from "@/hooks/use-queries";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,28 +21,12 @@ const STATUS_CONFIG = {
 
 export default function AnalysesListPage() {
   const router = useRouter();
-  const [analyses, setAnalyses] = useState<AnalysisResult[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [total, setTotal] = useState(0);
+  const { data, isLoading, error } = useAnalysesList({ limit: 50 });
 
-  useEffect(() => {
-    const fetchAnalyses = async () => {
-      try {
-        const result: AnalysisListResponse = await listAnalyses({ limit: 50 });
-        setAnalyses(result.analyses);
-        setTotal(result.total);
-      } catch (err: unknown) {
-        setError(err instanceof Error ? err.message : "Failed to load analyses");
-      } finally {
-        setLoading(false);
-      }
-    };
+  const analyses = data?.analyses || [];
+  const total = data?.total || 0;
 
-    fetchAnalyses();
-  }, []);
-
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
@@ -74,7 +56,7 @@ export default function AnalysesListPage() {
           {error && (
             <div className="flex items-center gap-2 rounded-lg border border-destructive/50 bg-destructive/10 p-4 text-destructive mb-4">
               <AlertCircle className="h-5 w-5 flex-shrink-0" />
-              <p className="text-sm">{error}</p>
+              <p className="text-sm">{error instanceof Error ? error.message : "Failed to load analyses"}</p>
             </div>
           )}
 
@@ -87,7 +69,7 @@ export default function AnalysesListPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {analyses.map((analysis) => {
+              {analyses.map((analysis: AnalysisResult) => {
                 const statusConfig = STATUS_CONFIG[analysis.status];
                 const StatusIcon = statusConfig.icon;
 
