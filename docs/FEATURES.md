@@ -44,7 +44,7 @@ SEO Pro operates in two modes:
 - **Modern Next.js Frontend**: TypeScript with Tailwind CSS
 - **Responsive Design**: Desktop and mobile optimized
 - **Analysis Selector**: Interactive tool to choose analysis types
-- **Real-Time Progress**: Live status updates during analysis
+- **Real-Time Progress**: Instant status updates via WebSocket + Postgres LISTEN/NOTIFY (no polling)
 - **Analysis History**: Filterable list of past analyses
 - **Detailed Results View**: Comprehensive breakdown with scores, issues, and recommendations
 - **Credit Purchase Flow**: Request credits with invoice generation
@@ -239,10 +239,11 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 ## Architecture
 
 ### Backend
-- **FastAPI Gateway**: Request routing, auth, orchestration
+- **FastAPI Gateway**: Request routing, auth, credit management, WebSocket real-time updates
 - **Cloud Run Deployment**: Scale-to-zero (min_instances=0)
 - **Cloud Tasks**: Async job processing
-- **Supabase**: PostgreSQL database with RLS
+- **Supabase**: PostgreSQL database with RLS + LISTEN/NOTIFY for real-time push
+- **Postgres LISTEN/NOTIFY**: DB triggers push audit status changes via WebSockets (zero polling)
 
 ### Worker
 - **Unified SDK Worker**: Claude Agent SDK-based analysis engine
@@ -299,4 +300,4 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 
 ---
 
-*Last updated: February 28, 2026*
+*Last updated: 2026-05-23*

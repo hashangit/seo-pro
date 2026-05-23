@@ -16,14 +16,17 @@ SEO Pro uses the Claude Agent SDK for unified cloud-based SEO analysis, leveragi
 │  │                 │◄───── JSON ────────│          (FastAPI)                  ││
 │  │  - Thin Client  │                     │                                     ││
 │  │  - WorkOS Auth  │                     │  - Authentication (WorkOS JWT)      ││
-│  └─────────────────┘                     │  - Credit Management (Supabase)     ││
-│                                          │  - Cloud Tasks submission           ││
-│                                          │  - Routes to SDK Worker             ││
+│  │  - TanStack Qry │                     │  - Credit Management (Supabase)     ││
+│  │                 │──────► WSS ────────►│  - Cloud Tasks submission           ││
+│  └─────────────────┘                     │  - Routes to SDK Worker             ││
+│                                          │  - WebSocket real-time updates       ││
 │                                          └───────────┬─────────────────────────┘│
 │                                                      │                          │
-│                                                      │ Cloud Tasks              │
-│                                                      │ (sdk-worker-queue)       │
-│                                                      ▼                          │
+│                          ┌───────────────────────────┤                          │
+│                          │                           │                          │
+│                          │ Cloud Tasks               │ WebSocket                │
+│                          │ (sdk-worker-queue)        │ (LISTEN/NOTIFY)          │
+│                          ▼                           ▼                          │
 │                             ┌────────────────────────────────────────────────┐  │
 │                             │              SDK WORKER                        │  │
 │                             │                                                │  │
@@ -115,16 +118,32 @@ project-root/
 ├── workers/
 │   └── sdk_worker.py             # SDK-based unified worker
 │
+├── api/
+│   ├── main.py                   # API Gateway (FastAPI)
+│   ├── routes/
+│   │   └── ws.py                 # WebSocket real-time endpoint
+│   └── core/
+│       └── ws_auth.py            # WebSocket WorkOS JWT validation
+│
 ├── scripts/
 │   ├── fetch_page.py             # Page fetching utility
 │   ├── parse_html.py             # HTML parsing utility
 │   └── capture_screenshot.py     # Screenshot utility
 │
-├── api/
-│   └── main.py                   # API Gateway (FastAPI)
+├── supabase/
+│   └── migrations/
+│       ├── 001_initial_schema.sql
+│       └── 002_audit_change_trigger.sql  # LISTEN/NOTIFY for real-time updates
 │
-└── frontend/
-    └── lib/api.ts                # Frontend API client
+├── frontend/
+│   ├── hooks/
+│   │   ├── use-queries.ts        # TanStack Query hooks
+│   │   └── use-audit-stream.ts   # WebSocket real-time hook
+│   ├── lib/
+│   │   ├── api.ts                # Unified API client
+│   │   └── query-client.ts       # TanStack QueryClient factory
+│   └── components/
+│       └── providers.tsx          # QueryClientProvider + AuthKitProvider
 ```
 
 ## Component Types
@@ -459,8 +478,9 @@ CMD ["python", "-m", "workers.sdk_worker"]
 
 | Component | Purpose |
 |-----------|---------|
-| API Gateway | Authentication, credit management, Cloud Tasks submission |
+| API Gateway | Authentication, credit management, Cloud Tasks submission, WebSocket real-time updates |
 | SDK Worker | Loads Skills/Agents, orchestrates analysis via Claude Agent SDK |
 | Scripts | Called by SDK via Bash for page fetching, parsing, etc. |
 | Skills/Agents | Loaded by SDK for multi-agent SEO analysis |
-| Supabase | Users, credits, audits, tasks storage |
+| Supabase | Users, credits, audits, tasks storage + LISTEN/NOTIFY triggers for real-time push |
+| Frontend (TanStack Query) | Declarative data fetching with caching, deduplication, and real-time cache updates via WebSocket |
