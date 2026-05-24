@@ -1,0 +1,18 @@
+{
+  "mcpServers": {
+    "paypal": {
+      "transport": "stdio",
+      "enabled": true,
+      "command": "npx",
+      "args": [
+        "-y",
+        "@paypal/mcp",
+        "--tools=all"
+      ],
+      "env": {
+        "PAYPAL_ACCESS_TOKEN": "A21AAI48qH0oWH01th2LWb--fP3NNP3IYTzhQAP-a5Sr1RvpIKPCg1d1sFqrXjiVKISZTyGDkeRl0rHFU9qxWYAmS8K0t-kzw",
+        "PAYPAL_ENVIRONMENT": "SANDBOX"
+      }
+    }
+  }
+}

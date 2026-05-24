@@ -8,6 +8,7 @@ export default authkitMiddleware({
       '/login',
       '/signup',
       '/api/auth/:path*',
+      '/callback',
       '/features',
       '/pricing',
     ],

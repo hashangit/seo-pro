@@ -11,7 +11,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS organizations (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -24,14 +24,14 @@ CREATE INDEX IF NOT EXISTS idx_organizations_name ON organizations(name);
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS users (
-    id UUID PRIMARY KEY,
+    id TEXT PRIMARY KEY,
     email VARCHAR(255) UNIQUE NOT NULL,
     first_name VARCHAR(100),
     last_name VARCHAR(100),
     phone VARCHAR(50),
     address TEXT,
     city VARCHAR(100),
-    organization_id UUID REFERENCES organizations(id) ON DELETE SET NULL,
+    organization_id TEXT REFERENCES organizations(id) ON DELETE SET NULL,
     credits_balance INTEGER DEFAULT 0 NOT NULL CHECK (credits_balance >= 0),
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW(),
@@ -47,7 +47,7 @@ CREATE INDEX IF NOT EXISTS idx_users_organization_id ON users(organization_id);
 
 CREATE TABLE IF NOT EXISTS credit_transactions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     amount INTEGER NOT NULL,
     balance_after INTEGER NOT NULL,
     transaction_type VARCHAR(50) NOT NULL CHECK (transaction_type IN ('purchase', 'spend', 'refund', 'bonus')),
@@ -67,7 +67,7 @@ CREATE INDEX IF NOT EXISTS idx_credit_transactions_user_balance ON credit_transa
 
 CREATE TABLE IF NOT EXISTS pending_audits (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     page_count INTEGER NOT NULL,
     credits_required INTEGER NOT NULL,
@@ -87,7 +87,7 @@ CREATE INDEX IF NOT EXISTS idx_pending_audits_status_expires ON pending_audits(s
 
 CREATE TABLE IF NOT EXISTS audits (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     status VARCHAR(50) DEFAULT 'queued' CHECK (status IN ('queued', 'processing', 'completed', 'failed', 'cancelled')),
     page_count INTEGER NOT NULL,
@@ -131,7 +131,7 @@ CREATE INDEX IF NOT EXISTS idx_audit_tasks_status_created ON audit_tasks(status,
 
 CREATE TABLE IF NOT EXISTS analyses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     url TEXT NOT NULL,
     analysis_type VARCHAR(50) NOT NULL
         CHECK (analysis_type IN ('technical', 'content', 'schema', 'geo', 'sitemap', 'hreflang', 'images', 'visual', 'performance', 'plan', 'programmatic', 'competitor-pages', 'page_audit', 'site_audit')),
@@ -163,7 +163,7 @@ CREATE INDEX IF NOT EXISTS idx_analyses_status_created ON analyses(status, creat
 
 CREATE TABLE IF NOT EXISTS credit_requests (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     credits_requested INTEGER NOT NULL CHECK (credits_requested > 0),
     amount DECIMAL(10,2) NOT NULL CHECK (amount > 0),
     currency VARCHAR(3) DEFAULT 'USD',
@@ -174,7 +174,7 @@ CREATE TABLE IF NOT EXISTS credit_requests (
     payment_proof_url TEXT,
     payment_notes TEXT,
     admin_notes TEXT,
-    reviewed_by UUID REFERENCES users(id),
+    reviewed_by TEXT REFERENCES users(id),
     reviewed_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -198,42 +198,42 @@ ALTER TABLE analyses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE credit_requests ENABLE ROW LEVEL SECURITY;
 
 -- Users policies
-CREATE POLICY "Users can view own data" ON users FOR SELECT USING (auth.uid() = id);
-CREATE POLICY "Users can update own data" ON users FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can view own data" ON users FOR SELECT USING ((auth.jwt() ->> 'sub') = id);
+CREATE POLICY "Users can update own data" ON users FOR UPDATE USING ((auth.jwt() ->> 'sub') = id);
 CREATE POLICY "Service role can manage users" ON users FOR ALL TO service_role USING (true);
 
 -- Organizations policies
 CREATE POLICY "Users can view own organization" ON organizations FOR SELECT USING (
-    id IN (SELECT organization_id FROM users WHERE id = auth.uid())
+    id IN (SELECT organization_id FROM users WHERE id = (auth.jwt() ->> 'sub'))
 );
 CREATE POLICY "Service role can manage organizations" ON organizations FOR ALL TO service_role USING (true);
 
 -- Credit transactions policies
-CREATE POLICY "Users can view own transactions" ON credit_transactions FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own transactions" ON credit_transactions FOR SELECT USING ((auth.jwt() ->> 'sub') = user_id);
 CREATE POLICY "Service role can manage transactions" ON credit_transactions FOR ALL TO service_role USING (true);
 
 -- Pending audits policies
-CREATE POLICY "Users can view own pending audits" ON pending_audits FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own pending audits" ON pending_audits FOR SELECT USING ((auth.jwt() ->> 'sub') = user_id);
 CREATE POLICY "Service role can manage pending audits" ON pending_audits FOR ALL TO service_role USING (true);
 
 -- Audits policies
-CREATE POLICY "Users can view own audits" ON audits FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own audits" ON audits FOR SELECT USING ((auth.jwt() ->> 'sub') = user_id);
 CREATE POLICY "Service role can manage audits" ON audits FOR ALL TO service_role USING (true);
 
 -- Audit tasks policies
 CREATE POLICY "Users can view own audit tasks" ON audit_tasks FOR SELECT USING (
-    audit_id IN (SELECT id FROM audits WHERE user_id = auth.uid())
+    audit_id IN (SELECT id FROM audits WHERE user_id = (auth.jwt() ->> 'sub'))
 );
 CREATE POLICY "Service role can manage audit tasks" ON audit_tasks FOR ALL TO service_role USING (true);
 
 -- Analyses policies
-CREATE POLICY "Users can view own analyses" ON analyses FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own analyses" ON analyses FOR SELECT USING ((auth.jwt() ->> 'sub') = user_id);
 CREATE POLICY "Service role can manage analyses" ON analyses FOR ALL TO service_role USING (true);
 
 -- Credit requests policies
-CREATE POLICY "Users can view own credit requests" ON credit_requests FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users can create credit requests" ON credit_requests FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "Users can update own credit requests" ON credit_requests FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users can view own credit requests" ON credit_requests FOR SELECT USING ((auth.jwt() ->> 'sub') = user_id);
+CREATE POLICY "Users can create credit requests" ON credit_requests FOR INSERT WITH CHECK ((auth.jwt() ->> 'sub') = user_id);
+CREATE POLICY "Users can update own credit requests" ON credit_requests FOR UPDATE USING ((auth.jwt() ->> 'sub') = user_id);
 CREATE POLICY "Service role can manage credit requests" ON credit_requests FOR ALL TO service_role USING (true);
 
 -- ============================================================================
@@ -268,12 +268,35 @@ CREATE TRIGGER update_analyses_updated_at BEFORE UPDATE ON analyses
     FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ============================================================================
+-- Audit Change Notification (Postgres LISTEN/NOTIFY → WebSocket)
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION notify_audit_change()
+RETURNS trigger AS $$
+BEGIN
+  PERFORM pg_notify('audit_changes', json_build_object(
+    'id', NEW.id,
+    'user_id', NEW.user_id,
+    'status', NEW.status,
+    'completed_at', NEW.completed_at,
+    'page_count', NEW.page_count,
+    'credits_used', NEW.credits_used,
+    'error_message', NEW.error_message
+  )::text);
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER audit_changed AFTER UPDATE ON audits
+FOR EACH ROW EXECUTE FUNCTION notify_audit_change();
+
+-- ============================================================================
 -- Atomic Credit Functions
 -- ============================================================================
 
 -- Deduct credits atomically
 CREATE OR REPLACE FUNCTION deduct_credits(
-    p_user_id UUID,
+    p_user_id TEXT,
     p_amount INTEGER,
     p_reference_id UUID DEFAULT NULL,
     p_reference_type VARCHAR(50) DEFAULT NULL,
@@ -307,7 +330,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Add credits
 CREATE OR REPLACE FUNCTION add_credits(
-    p_user_id UUID,
+    p_user_id TEXT,
     p_amount INTEGER,
     p_description TEXT DEFAULT NULL
 ) RETURNS JSONB AS $$
@@ -334,7 +357,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Refund credits
 CREATE OR REPLACE FUNCTION refund_credits(
-    p_user_id UUID,
+    p_user_id TEXT,
     p_amount INTEGER,
     p_reference_id UUID DEFAULT NULL,
     p_reference_type VARCHAR(50) DEFAULT NULL,
@@ -379,7 +402,7 @@ GRANT EXECUTE ON FUNCTION refund_credits TO authenticated, service_role;
 
 -- Create analysis record
 CREATE OR REPLACE FUNCTION create_analysis_record(
-    p_user_id UUID,
+    p_user_id TEXT,
     p_url TEXT,
     p_analysis_type VARCHAR(50),
     p_analysis_mode VARCHAR(20),

@@ -137,9 +137,8 @@ gcloud run deploy seo-pro-gateway \
 ENVIRONMENT=production,\
 FRONTEND_URL=https://your-frontend.vercel.app,\
 SUPABASE_URL=https://xxxxx.supabase.co,\
-WORKOS_AUDIENCE=api.workos.com,\
-WORKOS_ISSUER=api.workos.com,\
-WORKOS_JWKS_URL=https://api.workos.com/v1/jwks,\
+WORKOS_AUDIENCE=,\
+WORKOS_JWKS_URL=https://api.workos.com/sso/jwks/{client_id},\
 ADMIN_EMAILS=admin@yourdomain.com,\
 SENDGRID_FROM_EMAIL=noreply@yourdomain.com,\
 SENDGRID_FROM_NAME=SEO Pro" \
@@ -229,9 +228,8 @@ gcloud run services update seo-pro-gateway \
 | `SUPABASE_URL` | Plain | Supabase project URL |
 | `SUPABASE_SECRET_KEY` | Secret | Supabase service role key |
 | `WORKOS_CLIENT_ID` | Secret | WorkOS application client ID |
-| `WORKOS_AUDIENCE` | Plain | `api.workos.com` |
-| `WORKOS_ISSUER` | Plain | `api.workos.com` |
-| `WORKOS_JWKS_URL` | Plain | `https://api.workos.com/v1/jwks` |
+| `WORKOS_AUDIENCE` | Plain | empty unless a custom audience claim is configured |
+| `WORKOS_JWKS_URL` | Plain | `https://api.workos.com/sso/jwks/{client_id}` |
 | `ADMIN_EMAILS` | Plain | Comma-separated admin emails |
 | `SENDGRID_API_KEY` | Secret | SendGrid API key |
 | `SENDGRID_FROM_EMAIL` | Plain | Verified sender email |

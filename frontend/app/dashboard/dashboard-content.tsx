@@ -1,11 +1,12 @@
 'use client';
 
+import { useCreditBalance } from '@/hooks/use-queries';
+
 interface DashboardContentProps {
   user: {
     firstName?: string;
     email: string;
   };
-  creditBalance: number;
   recentAudits: Array<{
     id: string;
     url: string;
@@ -16,9 +17,10 @@ interface DashboardContentProps {
 
 export function DashboardContent({
   user,
-  creditBalance,
   recentAudits,
 }: DashboardContentProps) {
+  const { data: creditBalance, isLoading: isCreditBalanceLoading } = useCreditBalance();
+
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-6xl space-y-6">
@@ -32,7 +34,11 @@ export function DashboardContent({
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border p-4">
             <h2 className="text-lg font-semibold">Credit Balance</h2>
-            <p className="text-3xl font-bold">{creditBalance.toLocaleString()}</p>
+            <p className="text-3xl font-bold">
+              {isCreditBalanceLoading || typeof creditBalance?.balance !== 'number'
+                ? '...'
+                : creditBalance.balance.toLocaleString()}
+            </p>
           </div>
 
           <div className="rounded-lg border p-4">

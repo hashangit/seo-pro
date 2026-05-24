@@ -19,16 +19,15 @@ from api.config import Settings
 def override_settings(monkeypatch):
     """Override settings for testing."""
     def mock_getenv(key, default=None):
-        if key == "SUPABASE_URL":
-            return "https://test.supabase.co"
-        elif key == "SUPABASE_SECRET_KEY":
-            return "test-secret-key"
-        elif key == "WORKOS_AUDIENCE" or key == "WORKOS_ISSUER":
-            return "api.workos.com"
-        elif key == "SDK_WORKER_URL":
-            return "http://localhost:8003"
-        elif key == "FRONTEND_URL":
-            return "http://localhost:3000"
+        test_env = {
+            "SUPABASE_URL": "https://test.supabase.co",
+            "SUPABASE_SECRET_KEY": "test-secret-key",
+            "WORKOS_AUDIENCE": "api.workos.com",
+            "SDK_WORKER_URL": "http://localhost:8003",
+            "FRONTEND_URL": "http://localhost:3000",
+        }
+        if key in test_env:
+            return test_env[key]
         return os.environ.get(key, default)
 
     monkeypatch.setattr(os, "getenv", mock_getenv)
@@ -97,7 +96,6 @@ async def app_client(monkeypatch, test_user):
             SUPABASE_URL="https://test.supabase.co",
             SUPABASE_SECRET_KEY="test-secret-key",
             WORKOS_AUDIENCE="api.workos.com",
-            WORKOS_ISSUER="api.workos.com",
             SDK_WORKER_URL="http://localhost:8003",
         ),
     )
@@ -132,7 +130,6 @@ def get_test_settings():
         SUPABASE_URL="https://test.supabase.co",
         SUPABASE_SECRET_KEY="test-secret-key",
         WORKOS_AUDIENCE="api.workos.com",
-        WORKOS_ISSUER="api.workos.com",
         SDK_WORKER_URL="http://localhost:8003",
     )
 

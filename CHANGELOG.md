@@ -94,9 +94,100 @@ The Supabase JS client in the frontend (`lib/supabase.ts`) was set up but never 
 
 *Dev perspective*: Clear separation — all data flows through FastAPI. No ambiguity about whether to use the Supabase client or the API client.
 
+### Changed - WorkOS AuthKit Configuration & JWT Validation
+
+Overhauled the WorkOS authentication configuration to match AuthKit's actual token structure. AuthKit session tokens do not include an `aud` claim by default, and the issuer is namespaced per client — the previous config was using generic WorkOS API credentials rather than AuthKit-specific endpoints.
+
+**Root cause:** The `env_prefix` in pydantic-settings was silently ignoring all unprefixed `.env` variables, causing the app to always use defaults (like `WORKOS_AUDIENCE=api.workos.com` and `WORKOS_ISSUER=api.workos.com`) regardless of what was actually set in the `.env` file.
+
+- **Fixed**: `api/config.py` — removed `env_prefix: "SEO_PRO_"` from `SettingsConfigDict` (was silently dropping all unprefixed env vars)
+- **Changed**: `WORKOS_AUDIENCE` from required `str` to `Optional[str]` defaulting to `None` (AuthKit tokens don't include `aud` by default)
+- **Removed**: `WORKOS_ISSUER` field entirely — AuthKit tokens use a client-specific issuer, not the generic WorkOS API issuer
+- **Fixed**: `WORKOS_JWKS_URL` from `https://api.workos.com/v1/jwks` to `https://api.workos.com/sso/jwks/{client_id}` — the correct AuthKit JWKS endpoint
+- **Added**: `WORKOS_API_KEY` setting — enables server-side WorkOS API calls for user profile lookup
+- **Changed**: `workos_audience` property — returns `None` for default values, disabling audience verification when not configured
+- **Removed**: `workos_issuer` computed property — no longer needed
+- **Updated**: `api/services/auth.py` — formats JWKS URL with `client_id`, skips `aud`/`iss` verification when not configured
+- **Added**: JWKS cache invalidation on key rotation — if the cached JWKS doesn't contain the token's `kid`, the cache is flushed and re-fetched before failing
+- **Updated**: `api/conftest.py` — simplified test env setup, removed `WORKOS_ISSUER`
+- **Updated**: `.env.example` — updated WorkOS config docs with correct AuthKit values
+- **Updated**: `docs/DEPLOYMENT.md`, `docs/LOCAL_DEVELOPMENT.md` — deployment and dev docs reflect new config
+- **Removed**: `WORKOS_AUDIENCE` and `WORKOS_ISSUER` from `validate_required_settings()` — no longer required
+
+*User perspective*: No visible change — authentication continues to work. Previously, if the `.env` had correct values they were being silently ignored; now env vars are properly read.
+
+*Dev perspective*: AuthKit workflow now matches WorkOS documentation. The JWK URL is correct per AuthKit spec (`/sso/jwks/{client_id}` not `/v1/jwks`). Audience/issuer verification is opt-in rather than incorrectly asserted. The `env_prefix` bug is fixed — all `.env` variables are now read regardless of naming convention.
+
+### Changed - Real User Profile Sync from WorkOS
+
+`sync_user_to_supabase()` now fetches the full user profile from the WorkOS API instead of relying on AuthKit JWT claims. AuthKit JWTs only carry `sub`/`sid`/`org_id`/`role` — email and name come from the identity provider (Google, GitHub, etc.) and require a server-side API call.
+
+- **Added**: `_fetch_workos_user()` in `api/services/auth.py` — fetches real `email`, `first_name`, `last_name` from WorkOS `user_management.get_user()` API
+- **Changed**: `sync_user_to_supabase()` — fetches WorkOS profile on every login (new and existing users)
+- **Changed**: Existing users now get profile data refreshed (email, first_name, last_name) on each login instead of just `last_sync`
+- **Changed**: New users are created with real IdP profile data instead of `@placeholder.local` fallback emails
+- **Added**: Graceful degradation — if WorkOS API key is not configured, falls back to JWT claims (logged as warning)
+
+*User perspective*: Users will see their real name and email (from Google/GitHub SSO) in the app immediately instead of placeholder values.
+
+*Dev perspective*: Requires `WORKOS_API_KEY` env var for the profile fetch to work. Without it, the system logs a warning and falls back to JWT claims. Follows taste.md guidance: "When using WorkOS AuthKit with social providers, sync real user profile data from the identity provider to Supabase, not placeholder values."
+
+### Added - Auth & Schema Regression Tests
+
+- **Added**: `api/tests/test_auth.py` — 3 JWT verification tests:
+  - Verifies AuthKit session tokens are accepted with legacy `aud`/`iss` env defaults
+  - Verifies AuthKit tokens signed with the correct WorkOS issuer pass validation
+  - Verifies JWKS cache invalidation on key rotation (refetches and retries before rejecting)
+- **Added**: `api/tests/test_workos_schema.py` — 3 database schema regression tests:
+  - Verifies WorkOS IDs (`user_xxx`, `org_xxx`) are stored as `TEXT`, not `UUID`
+  - Verifies all foreign keys and function parameters accept `TEXT` user IDs
+  - Verifies RLS policies use `auth.jwt() ->> 'sub'` (text) not `auth.uid()` (UUID)
+
+### Changed - Frontend Auth & Data Fetching Fixes
+
+Fixed a race condition where TanStack Query hooks would fire before the access token was fully loaded, causing 401 errors on initial page load. Also fixed the middleware to allow AuthKit callback URLs.
+
+- **Fixed**: `frontend/hooks/use-queries.ts` — changed `enabled` from `isAuthenticated` to `canFetch` (checks both `isAuthenticated` and `!accessTokenLoading`)
+- **Fixed**: `useAuditStatus` and `useAnalysisStatus` — added missing `canFetch` check to their `enabled` conditions
+- **Added**: `frontend/hooks/use-auth.ts` — exports new `accessTokenLoading` state
+- **Fixed**: `frontend/hooks/use-queries.ts` — all query hooks now use `canFetch` instead of just `isAuthenticated`
+- **Fixed**: `frontend/middleware.ts` — added `/callback` to public paths (AuthKit callback route was being blocked)
+- **Changed**: `frontend/app/dashboard/page.tsx` — credit balance is now fetched client-side via `useCreditBalance()` hook instead of server-side `getCreditBalance()`, eliminating a redundant server fetch and allowing the dashboard to show a loading state
+- **Changed**: `frontend/app/dashboard/dashboard-content.tsx` — uses `useCreditBalance()` hook internally; shows "..." while loading credits
+
+*User perspective*: No more spurious 401 errors on initial page load. Credit balance on the dashboard shows a loading state while fetching. AuthKit callback flow works correctly.
+
+*Dev perspective*: All data-fetching hooks now properly wait for the access token to be ready before firing. This was a subtle race — `isAuthenticated` was `true` before `getAccessToken()` returned a resolved token.
+
+### Changed - Database Migration Consolidation
+
+Following the taste.md guidance to consolidate DB changes into the initial migration during pre-production, the audit change trigger has been moved from its own migration file into `001_initial_schema.sql`.
+
+- **Moved**: `notify_audit_change()` function and `audit_changed` trigger from `002_audit_change_trigger.sql` into `001_initial_schema.sql`
+- **Deleted**: `supabase/migrations/002_audit_change_trigger.sql` — no longer a separate migration
+
+*Dev perspective*: Single migration file reduces complexity for `supabase db push`. The consolidated schema is cleaner and easier to review.
+
+### Added - Skills Infrastructure & PayPal Sandbox Plan
+
+- **Added**: `.agents/skills/supabase/` — Supabase skills (SKILL.md, references) from the public `supabase/agent-skills` GitHub repository
+- **Added**: `skills-lock.json` — locks supabase and supabase-postgres-best-practices skills to specific hashes
+- **Added**: `.mcp.json` — PayPal MCP server configuration for sandbox testing
+- **Added**: `docs/plans/2026-05-23-paypal-payment-links-sandbox.md` — detailed sandbox experiment plan for PayPal Payment Links reconciliation
+
 ### Changed - Taste System Architecture Guidance
 
-- **Added**: `.commandcode/taste/taste.md` — learned preferences for routing frontend data through FastAPI (not Supabase directly) and using Postgres LISTEN/NOTIFY for real-time updates
+Extended `.commandcode/taste/taste.md` with learned preferences:
+- Route all frontend data access through the FastAPI backend, not directly to Supabase
+- For real-time status updates, use Postgres LISTEN/NOTIFY + FastAPI WebSocket rather than Supabase Realtime
+- Sync real user profile data from WorkOS IdP to Supabase (not placeholder values)
+- Avoid `env_prefix` in pydantic-settings (silently ignores unprefixed env vars)
+- Consolidate DB changes into initial migration during pre-production
+- Store plan files in project-local `.commandcode/plan/` directory
+- Debug by tracing existing code-level relationships (follow the breadcrumb trail)
+- After fixing one issue, continue investigating for other overlooked issues
+- When identifying code duplication, consolidate to the correct pattern first
+- Kill servers after making changes (user manages their own server processes)
 
 
 

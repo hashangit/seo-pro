@@ -22,8 +22,11 @@ import {
 // ============================================================================
 
 function useToken() {
-  const { isAuthenticated, getAccessToken } = useAuthUser();
-  return { isAuthenticated, getToken: async () => isAuthenticated ? getAccessToken() : undefined };
+  const { isAuthenticated, accessTokenLoading, getAccessToken } = useAuthUser();
+  return {
+    canFetch: isAuthenticated && !accessTokenLoading,
+    getToken: async () => isAuthenticated ? getAccessToken() : undefined,
+  };
 }
 
 // ============================================================================
@@ -31,39 +34,39 @@ function useToken() {
 // ============================================================================
 
 export function useCreditBalance() {
-  const { isAuthenticated, getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["creditBalance"],
     queryFn: async () => {
       const token = await getToken();
       return getCreditBalance(token);
     },
-    enabled: isAuthenticated,
+    enabled: canFetch,
     staleTime: 30_000,
   });
 }
 
 export function useCreditHistory() {
-  const { isAuthenticated, getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["creditHistory"],
     queryFn: async () => {
       const token = await getToken();
       return getCreditHistory(token);
     },
-    enabled: isAuthenticated,
+    enabled: canFetch,
   });
 }
 
 export function useCreditRequests(limit = 50, offset = 0) {
-  const { isAuthenticated, getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["creditRequests", limit, offset],
     queryFn: async () => {
       const token = await getToken();
       return getCreditRequests(limit, offset, token);
     },
-    enabled: isAuthenticated,
+    enabled: canFetch,
   });
 }
 
@@ -108,26 +111,26 @@ export function useSubmitPaymentProof() {
 // ============================================================================
 
 export function useAuditsList(limit = 20, offset = 0) {
-  const { isAuthenticated, getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["audits", limit, offset],
     queryFn: async () => {
       const token = await getToken();
       return listAudits(limit, offset, token);
     },
-    enabled: isAuthenticated,
+    enabled: canFetch,
   });
 }
 
 export function useAuditStatus(auditId: string) {
-  const { getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["audit", auditId],
     queryFn: async () => {
       const token = await getToken();
       return getAuditStatus(auditId, token);
     },
-    enabled: !!auditId,
+    enabled: canFetch && !!auditId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "completed" || status === "failed" ? false : 2000;
@@ -140,26 +143,26 @@ export function useAuditStatus(auditId: string) {
 // ============================================================================
 
 export function useAnalysesList(params: AnalysisListParams = {}) {
-  const { isAuthenticated, getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["analyses", params],
     queryFn: async () => {
       const token = await getToken();
       return listAnalyses(params, token);
     },
-    enabled: isAuthenticated,
+    enabled: canFetch,
   });
 }
 
 export function useAnalysisStatus(analysisId: string) {
-  const { getToken } = useToken();
+  const { canFetch, getToken } = useToken();
   return useQuery({
     queryKey: ["analysis", analysisId],
     queryFn: async () => {
       const token = await getToken();
       return getAnalysisStatus(analysisId, token);
     },
-    enabled: !!analysisId,
+    enabled: canFetch && !!analysisId,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "completed" || status === "failed" || status === "cancelled"

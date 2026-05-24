@@ -30,10 +30,13 @@ try:
         SUPABASE_DATABASE_URL: str | None = Field(default=None, description="Direct PostgreSQL connection URL for LISTEN/NOTIFY")
 
         # WorkOS
-        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
-        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_AUDIENCE: str | None = Field(
+            default=None,
+            description="Optional WorkOS audience claim. AuthKit session tokens do not include aud by default.",
+        )
         WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
-        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
+        WORKOS_API_KEY: str | None = Field(default=None, description="WorkOS API key for server-side API calls (user lookup, etc.)")
+        WORKOS_JWKS_URL: str = "https://api.workos.com/sso/jwks/{client_id}"
 
         # PayHere (Optional - integration pending IPG setup)
         PAYHERE_MERCHANT_ID: str | None = None
@@ -88,7 +91,6 @@ try:
         model_config: SettingsConfigDict = {
             "case_sensitive": False,
             "env_file": ".env",
-            "env_prefix": "SEO_PRO_",
             "extra": "ignore"
         }
 
@@ -111,18 +113,13 @@ try:
             return v
 
         @property
-        def workos_audience(self) -> str:
-            """Get WorkOS audience based on environment."""
-            if self.ENVIRONMENT == "production":
-                return "api.workos.com"
-            return "api.workos.com/staging"
-
-        @property
-        def workos_issuer(self) -> str:
-            """Get WorkOS issuer based on environment."""
-            if self.ENVIRONMENT == "production":
-                return "api.workos.com"
-            return "api.workos.com/staging"
+        def workos_audience(self) -> str | None:
+            """Get optional WorkOS audience for JWT validation."""
+            if not self.WORKOS_AUDIENCE:
+                return None
+            if self.WORKOS_AUDIENCE in {"api.workos.com", "api.workos.com/staging"}:
+                return None
+            return self.WORKOS_AUDIENCE
 
         @property
         def is_production(self) -> bool:
@@ -166,10 +163,13 @@ except ImportError:
         SUPABASE_DATABASE_URL: str | None = Field(default=None, description="Direct PostgreSQL connection URL for LISTEN/NOTIFY")
 
         # WorkOS
-        WORKOS_AUDIENCE: str = Field(default="api.workos.com", description="WorkOS audience")
-        WORKOS_ISSUER: str = Field(default="api.workos.com", description="WorkOS issuer")
+        WORKOS_AUDIENCE: str | None = Field(
+            default=None,
+            description="Optional WorkOS audience claim. AuthKit session tokens do not include aud by default.",
+        )
         WORKOS_CLIENT_ID: str = Field(default="test-client-id", description="WorkOS client ID")
-        WORKOS_JWKS_URL: str = "https://api.workos.com/v1/jwks"
+        WORKOS_API_KEY: str | None = Field(default=None, description="WorkOS API key for server-side API calls (user lookup, etc.)")
+        WORKOS_JWKS_URL: str = "https://api.workos.com/sso/jwks/{client_id}"
 
         # PayHere (Optional - integration pending IPG setup)
         PAYHERE_MERCHANT_ID: str | None = None
@@ -245,18 +245,13 @@ except ImportError:
             return v
 
         @property
-        def workos_audience(self) -> str:
-            """Get WorkOS audience based on environment."""
-            if self.ENVIRONMENT == "production":
-                return "api.workos.com"
-            return "api.workos.com/staging"
-
-        @property
-        def workos_issuer(self) -> str:
-            """Get WorkOS issuer based on environment."""
-            if self.ENVIRONMENT == "production":
-                return "api.workos.com"
-            return "api.workos.com/staging"
+        def workos_audience(self) -> str | None:
+            """Get optional WorkOS audience for JWT validation."""
+            if not self.WORKOS_AUDIENCE:
+                return None
+            if self.WORKOS_AUDIENCE in {"api.workos.com", "api.workos.com/staging"}:
+                return None
+            return self.WORKOS_AUDIENCE
 
         @property
         def is_production(self) -> bool:
@@ -307,8 +302,6 @@ def validate_required_settings() -> None:
         required_vars = {
             "SUPABASE_URL": "Supabase project URL",
             "SUPABASE_SECRET_KEY": "Supabase secret key (server-side only)",
-            "WORKOS_AUDIENCE": "WorkOS audience for JWT validation",
-            "WORKOS_ISSUER": "WorkOS issuer for JWT tokens",
             "WORKOS_CLIENT_ID": "WorkOS client ID",
             "FRONTEND_URL": "Frontend application URL",
             "GOOGLE_CLOUD_PROJECT": "Google Cloud project ID",

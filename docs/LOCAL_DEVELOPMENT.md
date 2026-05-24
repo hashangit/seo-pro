@@ -76,8 +76,8 @@ Edit `.env` with your actual values:
 NEXT_PUBLIC_WORKOS_CLIENT_ID=client_01YOUR_WORKOS_CLIENT_ID
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://localhost:3000
 
-WORKOS_AUDIENCE=api.workos.com
-WORKOS_ISSUER=api.workos.com
+WORKOS_AUDIENCE=
+WORKOS_JWKS_URL=https://api.workos.com/sso/jwks/{client_id}
 
 # ============================================================================
 # Supabase (Data Store Only)

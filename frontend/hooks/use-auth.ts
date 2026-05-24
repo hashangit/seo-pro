@@ -1,7 +1,6 @@
 'use client';
 
-import { useAuth } from '@workos-inc/authkit-nextjs/components';
-import { useAccessToken } from '@workos-inc/authkit-nextjs/components';
+import { useAccessToken, useAuth } from '@workos-inc/authkit-nextjs/components';
 
 export interface AuthUser {
   id: string;
@@ -12,11 +11,12 @@ export interface AuthUser {
 
 export function useAuthUser() {
   const { user, loading } = useAuth();
-  const { getAccessToken } = useAccessToken();
+  const { getAccessToken, loading: accessTokenLoading } = useAccessToken();
 
   return {
     user: user as AuthUser | null,
     loading,
+    accessTokenLoading,
     isAuthenticated: !!user,
     getAccessToken,
   };
