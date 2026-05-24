@@ -1,6 +1,87 @@
 # Installation Guide
 
-## Prerequisites
+SEO Pro operates in two modes:
+- **Claude Code Skill**: CLI-based SEO analysis (`/seo` commands)
+- **SaaS Platform**: Web application with credit-based pricing
+
+---
+
+## SaaS Platform Installation
+
+### Prerequisites
+
+- **Python 3.11+**
+- **Node.js 20+**
+- **Docker Desktop** (for Supabase local)
+- **Git**
+
+### Setup
+
+1. **Clone the repository**
+
+```bash
+git clone https://github.com/hashangit/seo-pro.git
+cd seo-pro
+```
+
+2. **Configure environment**
+
+```bash
+cp .env.example .env
+# Edit .env with your WorkOS and Supabase credentials
+```
+
+3. **Start Supabase locally** (optional)
+
+```bash
+docker-compose up -d
+```
+
+4. **Install Python dependencies**
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+5. **Install frontend dependencies**
+
+```bash
+cd frontend
+npm install
+cd ..
+```
+
+6. **Run database migrations**
+
+```bash
+supabase db push  # For remote Supabase
+# or
+supabase db reset  # For local Supabase
+```
+
+7. **Start the backend**
+
+```bash
+source .venv/bin/activate
+uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+```
+
+8. **Start the frontend**
+
+```bash
+cd frontend
+npm run dev
+```
+
+The app will be available at `http://localhost:3000`.
+
+---
+
+## Claude Code Skill Installation
+
+### Prerequisites
 
 - **Python 3.8+** with pip
 - **Git** for cloning the repository

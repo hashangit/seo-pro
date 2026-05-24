@@ -189,6 +189,68 @@ Extended `.commandcode/taste/taste.md` with learned preferences:
 - When identifying code duplication, consolidate to the correct pattern first
 - Kill servers after making changes (user manages their own server processes)
 
+### Added - Analysis Execution Integration (Frontend)
+
+The analysis selector UI previously used placeholder routing (`/analysis?mode=...&types=...`) for individual and page audit modes. It now calls the actual API functions and navigates to the real results page.
+
+- **Added**: `frontend/components/analysis/analysis-selector.tsx` — individual analysis execution via `INDIVIDUAL_ANALYSIS_FNS` lookup table mapping all 12 analysis types to their API functions
+- **Added**: Page audit now calls `analyzePage()` and navigates to `/analysis/{analysis_id}` (was a TODO placeholder)
+- **Fixed**: Individual analysis now runs the first selected type and navigates to `/analysis/{analysis_id}` instead of a generic params-based URL
+- **Updated**: `frontend/lib/api.ts` — added `analysis_id?: string` to `AnalyzeResponse` interface
+
+*User perspective*: Clicking "Run Analysis" on individual or page audit modes now actually executes the analysis and shows results on the real results page instead of a blank placeholder.
+
+### Fixed - Analysis ID Propagation in API Responses
+
+The API now consistently returns `analysis_id` in analysis responses, fixing a gap where the frontend couldn't navigate to results after running an analysis.
+
+- **Fixed**: `api/models/analyses.py` — added `analysis_id: str | None = None` to `AnalyzeResponse` model
+- **Fixed**: `api/routes/analyses.py` — `create_analysis_response()` now passes `analysis_id` from the worker result
+- **Fixed**: `api/services/analyses.py` — `run_individual_analysis()` now sets `result["analysis_id"] = analysis_id` on both the success and error return paths (was missing on the error path)
+
+*Dev perspective*: The `analysis_id` field was already being created in the `analyses` table but not propagated back through the response model. Both success and error paths now include it so the frontend can render results or show error state on the correct analysis page.
+
+### Added - Analysis Flow Architecture Documentation
+
+Comprehensive architectural tracker documenting the current analysis/audit state, known bugs/gaps, and the intended quote-first, async paid-job architecture for all analysis modes. This serves as the source of truth for the upcoming migration.
+
+- **Added**: `docs/ANALYSIS_FLOW_ARCHITECTURE.md` — executive summary, current implementation state, runtime flow matrix, gap analysis (product, execution, frontend/API, ledger), intended domain model with quote/job separation, target backend flow, target database shape, migration strategy with 5 phases, and progress tracker
+- **Added**: `docs/review/11-analysis-flow-current-and-target.md` — review document with current-state matrix, known bugs, architectural gaps, intended model, and migration direction
+- **Updated**: `docs/ARCHITECTURE.md` — added analysis flow tracker callout, updated project structure with `.agents/` and `.mcp.json`, merged migration descriptions
+- **Updated**: `docs/FEATURES.md` — added implementation notes linking to analysis flow tracker, clarified TanStack Query caching vs real-time, updated AuthKit references
+- **Updated**: `docs/TODO.md` — replaced placeholder items with prioritized Analysis Flow Unification tracker (6 items: correctness bugs, quote model, credit links, Cloud Tasks migration, result routing, quote retention)
+- **Updated**: All review docs (`01-system-architecture` through `10-findings`, `README`) — added current-state disclaimers, analysis flow tracker references, updated data flow descriptions to reflect orchestrator removal and the split between sync/async analysis paths
+
+*Dev perspective*: Single source of truth for the intended analysis flow redesign. All review findings now reference the tracker. The TODO list is actionable with clear priority levels. Before changing analysis, audit, quote, credit, worker, or result-route code, developers should consult the tracker.
+
+### Added - SaaS Platform Installation & Troubleshooting Guides
+
+Complete installation and troubleshooting documentation for the SaaS platform, which previously only had CLI skill instructions.
+
+- **Added**: `docs/INSTALLATION.md` — full SaaS Platform Installation section with prerequisites, environment setup, Python/Node dependencies, database migrations, and backend/frontend server startup; reorganized as SaaS Platform + Claude Code Skill dual-mode guide
+- **Added**: `docs/TROUBLESHOOTING.md` — SaaS Platform Issues section covering:
+  - Backend fails to start (venv, deps, port conflicts)
+  - Auth/JWKS errors (WorkOS AuthKit config, JWKS URL, audience, issuer)
+  - WebSocket connection failures (database URL, trigger installation, logs)
+  - Frontend build/compile errors (deps, cache, Node version)
+- **Updated**: `docs/DEVELOPER_GUIDE.md` — added WorkOS AuthKit config notes, venv activation, backend/frontend server run commands
+- **Updated**: `docs/MCP-INTEGRATION.md` — added Project MCP Configuration section documenting `.agents/` and `.mcp.json`
+
+*User perspective*: New developers can follow step-by-step SaaS platform setup from clone to running app. Common errors now have documented solutions.
+
+### Added - CODEX.md / Dual-Graph Context Policy
+
+- **Added**: `CODEX.md` — dual-graph MCP context policy for efficient context retrieval using layered context files, recommended for AI-assisted development workflows
+- **Added**: `.gitignore` — `.dual-graph/` and `.dual-graph-context/` entries for dual-graph working directories
+
+### Changed - Taste Workflow Extraction
+
+- **Changed**: `.commandcode/taste/taste.md` — added unified analysis flow taste item (estimate → credit gate → analysis → results); moved workflow items to separate `workflow/taste.md` file for better organization; added "check parallel code paths" lesson
+- **Added**: `.commandcode/taste/workflow/taste.md` — extracted workflow taste items (plan files, debugging, issue investigation, code duplication, server management, parallel path validation)
+
+### Fixed - Analysis Selector Imports and Types
+
+- **Fixed**: `frontend/components/analysis/analysis-selector.tsx` — added imports for all 11 individual analysis API functions (`analyzeTechnical`, `analyzeContent`, etc.) and `AnalyzeResponse` type
 
 
 ## [2.1.0] - 2026-02-28

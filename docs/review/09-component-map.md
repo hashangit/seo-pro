@@ -1,5 +1,7 @@
 # 09 — Complete Component Relationship Map
 
+> **Current-state review, not target architecture:** This map reflects the code structure that exists today, including the split between direct synchronous analysis calls and async site-audit Cloud Tasks. The intended unified analysis flow is tracked in [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md).
+
 ## File-Level Dependencies
 
 ```
@@ -212,6 +214,8 @@ deploy/Dockerfile.sdk-worker → workers/sdk_worker.py + api/utils/ + api/config
 
 ## Service Communication Map
 
+The map below includes both current analysis paths: individual/page analysis currently uses a direct Gateway-to-Worker call, while site audit uses Cloud Tasks. The target state is async Cloud Tasks for all paid analysis jobs.
+
 ```
 Frontend ──HTTP──▶ Gateway ──HTTP──▶ SDK Worker
     │                  │                  │
@@ -230,7 +234,7 @@ SDK Worker ──HTTP (Anthropic API)──▶ Z.AI (GLM-4.7)
 CLI (Claude Code) ──Filesystem──▶ skills/ + agents/
 CLI (Claude Code) ──stdio MCP──▶ web-search/
 
-Orchestrator (legacy) ──Cloud Tasks──▶ Queue ──▶ Worker URLs
+~~Orchestrator (legacy) ──Cloud Tasks──▶ Queue ──▶ Worker URLs~~ REMOVED 2026-05-23
 ```
 
 ## Technology Stack Interactions
@@ -257,8 +261,8 @@ Orchestrator (legacy) ──Cloud Tasks──▶ Queue ──▶ Worker URLs
 │  └─────────────┘        │ ┌──────────────────────┐       │
 │                         │ │ Z.AI API             │       │
 │  ┌─────────────┐        │ │ (Anthropic-compat)   │       │
-│  │ Supabase JS │        │ │ GLM-4.7 model        │       │
-│  │ (types)     │        │ └──────────────────────┘       │
+│  │ FastAPI API │        │ │ GLM-4.7 model        │       │
+│  │ client only │        │ └──────────────────────┘       │
 │  └─────────────┘        │                                │
 └─────────────────────────────────────────────────────────┘
                           │

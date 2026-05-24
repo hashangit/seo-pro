@@ -1,9 +1,20 @@
-<!-- Updated: 2026-02-07 -->
+<!-- Updated: 2026-05-23 -->
 # MCP Integration
 
 ## Overview
 
 SEO Pro can integrate with Model Context Protocol (MCP) servers to access external APIs and enhance analysis capabilities.
+
+## Project MCP Configuration
+
+SEO Pro includes a project-level `.mcp.json` file that configures local MCP servers for development. The following MCP tools are available:
+
+| MCP Server | Purpose |
+|------------|---------|
+| **Supabase best practices** (`.agents/`) | Postgres performance optimization and security guidance loaded by the Codebuff CLI |
+| **Filesystem** | Read/write access to the project directory |
+
+These are defined in `.mcp.json` at the project root and are loaded automatically by compatible CLI tools (e.g., Codebuff) when working in this project.
 
 ## Available Integrations
 

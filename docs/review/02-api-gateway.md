@@ -4,6 +4,8 @@
 
 The API gateway is a **FastAPI** application deployed on **Google Cloud Run** (512Mi, 1 CPU, 0–100 instances, 300s timeout). It serves as the central backend for the SaaS platform, handling authentication, credits, audit orchestration, and proxying analysis requests to the SDK Worker.
 
+> **Current-state review, not target architecture:** This file intentionally describes the current gateway split between `audits` and `analyses`. That split is a migration target, not the desired end state. Use [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md) for the intended quote-first, async analysis-job flow.
+
 ### Key Files
 
 | File | Lines | Purpose |
@@ -25,6 +27,15 @@ The API gateway is a **FastAPI** application deployed on **Google Cloud Run** (5
 | `admin_credits` | `api/routes/admin/credits.py` | `/api/v1/admin/credits/requests` | `GET /`, `POST /{id}/approve`, `POST /{id}/reject`, `POST /cleanup/expired-quotes` |
 | `audits` | `api/routes/audits.py` | `/api/v1/audit` | `POST /discover`, `POST /estimate`, `POST /run`, `GET /{id}`, `GET /` |
 | `analyses` | `api/routes/analyses.py` | `/api/v1` | `POST /analyze/estimate`, `GET /analyses`, `GET /analyses/{id}`, `POST /analyze/{type}` |
+
+### Analysis Flow Note
+
+Today the gateway has two analysis-related route families:
+
+- `audits.py` owns site-audit quotes, site-audit credit deduction, async Cloud Tasks dispatch, and `/audit/{id}` results.
+- `analyses.py` owns individual/page analysis estimates, credit deduction, synchronous SDK Worker proxying, and `/analysis/{id}` results.
+
+The intended architecture removes this product-level divergence. All three modes should share quote creation, quote acceptance, credit gating, async job dispatch, worker-isolated execution, and `/analysis/{analysis_id}` results.
 
 ### Service Layer
 
@@ -110,6 +121,8 @@ URL discovery for site audits:
 
 ### Credit Flow — End to End
 
+This section describes the current site-audit credit flow. Individual/page analysis currently use a separate flow in `analyses.py`; that gap is tracked in the analysis-flow architecture document.
+
 ```
 1. Estimate: POST /audit/estimate
    → Create pending_audits record (status=pending, 30min TTL)
@@ -123,9 +136,10 @@ URL discovery for site audits:
    → On failure: refund_credits() + update status=failed
 
 3. Worker completes:
-   → SDK Worker writes results to audit_tasks
-   → DB trigger notifies Gateway via LISTEN/NOTIFY
-   → Gateway pushes to frontend via WebSocket
+   → SDK Worker writes site-audit results to audits when audit_id is present
+   → audit_tasks is only used for task-level rows when task_id is present
+   → DB trigger notifies Gateway via LISTEN/NOTIFY where configured
+   → Gateway pushes status changes to frontend via WebSocket
 
 4. Frontend receives real-time updates:
    WebSocket connection receives push events → TanStack Query cache updated

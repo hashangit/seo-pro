@@ -16,6 +16,8 @@ SEO Pro is a comprehensive SEO analysis platform operating in two modes:
 
 The platform provides 12 analysis types powered by Claude Agent SDK running on Cloud Run, with parallel subagent delegation for site audits.
 
+> **Active analysis-flow tracker:** The review files describe the current and historical system. For the intended quote-first, async paid-job architecture, use [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md) and [11-analysis-flow-current-and-target.md](./11-analysis-flow-current-and-target.md) before changing analysis, audit, quote, credit, worker, or result-route code.
+
 ---
 
 ## Review Documents
@@ -32,6 +34,7 @@ The platform provides 12 analysis types powered by Claude Agent SDK running on C
 | [08-supporting-modules.md](./08-supporting-modules.md) | Web search MCP, hooks, PDF ref, schema templates, scripts |
 | [09-component-map.md](./09-component-map.md) | Complete component-to-component relationship map |
 | [10-findings.md](./10-findings.md) | Architectural observations, gaps, and recommendations |
+| [11-analysis-flow-current-and-target.md](./11-analysis-flow-current-and-target.md) | Current analysis/audit flow, known bugs, and target quote/job architecture |
 
 ---
 
@@ -147,3 +150,10 @@ User/Browser → Next.js Frontend (Vercel)
     (12 skill  (6 sub-    (fetch_page,
      defs)     agents)    screenshot, etc.)
 ```
+
+### Active Architecture Tracker
+
+The analysis/audit flow is intentionally being redesigned toward a quote/request lifecycle plus async paid analysis jobs. Track current state, gaps, decisions, and migration progress in:
+
+- [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md)
+- [11-analysis-flow-current-and-target.md](./11-analysis-flow-current-and-target.md)

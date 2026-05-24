@@ -4,6 +4,8 @@
 
 The `workers/` directory contains a single unified worker that replaced the previous two-worker architecture (HTTP Worker + Browser Worker). It's deployed on Cloud Run with 4Gi memory, 2 CPU, and scale-to-zero.
 
+> **Current-state review, not target architecture:** This file describes the current SDK Worker behavior. The intended direction is that every paid analysis request reaches the worker asynchronously with an `analysis_id`, a user-owned job context, and one durable result destination in `analyses`. See [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md).
+
 ## SDK Worker (`workers/sdk_worker.py`)
 
 The SDK Worker is a **FastAPI** service that accepts analysis requests and delegates them to the **Claude Agent SDK**, which loads skills and agents from the filesystem.
@@ -58,9 +60,14 @@ async for message in query(
 
 ### Result Handling
 
-On completion:
-1. Worker writes results directly to `audit_tasks` table in Supabase (via `update_task_status()`)
-2. ~~Worker can optionally POST to orchestrator's `/task-update` endpoint~~ — Callback removed (2026-05-23). Worker writes exclusively to Supabase.
+Current behavior depends on how the worker was invoked:
+
+1. Site-audit async path: when `audit_id` is present, the worker writes the final site-audit result to `audits`.
+2. Task-level path: when `task_id` is present, the worker writes task progress/result data to `audit_tasks`.
+3. Individual/page sync path: the gateway proxies the worker call and writes the `analyses` record itself.
+4. ~~Worker can optionally POST to orchestrator's `/task-update` endpoint~~ — callback removed (2026-05-23).
+
+Target behavior: all paid analysis modes should be async. The worker should receive `analysis_id`, `user_id`, `analysis_mode`, `analysis_type`, quote/job metadata, and URL scope; then it should persist status and results to `analyses` through one code path.
 
 ### Key Dependencies
 
@@ -93,7 +100,7 @@ Healthcheck: HTTP GET /health
 
 The legacy orchestrator has been completely removed. It was an alternative orchestration path using Google Cloud Tasks with in-memory state (`_audit_state = {}`), but the API layer already bypassed it by dispatching directly to the SDK Worker. The orchestrator referenced `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` which no longer exist.
 
-All orchestration now flows through: **API Gateway → Cloud Tasks → SDK Worker → Supabase**. The SDK Worker writes results exclusively to Supabase (no `/task-update` callback endpoint).
+Current site-audit orchestration flows through **API Gateway → Cloud Tasks → SDK Worker → Supabase**. Individual/page analysis still uses a synchronous **API Gateway → SDK Worker → API Gateway → Supabase** path and is targeted for migration to Cloud Tasks. The SDK Worker writes directly to Supabase for async site-audit paths and no `/task-update` callback endpoint remains.
 
 ## Scripts (`scripts/`)
 

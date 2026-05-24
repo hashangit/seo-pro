@@ -2,7 +2,9 @@
 
 ## Overview
 
-SEO Pro uses the Claude Agent SDK for unified cloud-based SEO analysis, leveraging filesystem-based Skills and Agents for multi-agent orchestration.
+SEO Pro uses the Claude Agent SDK for unified cloud-based SEO analysis, leveraging filesystem-based Skills and Agents for multi-agent orchestration. Authentication is handled by **WorkOS AuthKit** with JWKS fetched from the AuthKit-specific endpoint (`/sso/jwks/{client_id}`).
+
+> **Analysis flow tracker:** The current analysis/audit implementation is in transition. Use [Analysis Flow Architecture](./ANALYSIS_FLOW_ARCHITECTURE.md) as the source of truth for current state, known bugs/gaps, intended quote/job architecture, and migration progress.
 
 ## System Architecture
 
@@ -15,7 +17,7 @@ SEO Pro uses the Claude Agent SDK for unified cloud-based SEO analysis, leveragi
 │  │   (Next.js)     │──────► REST ───────►│          API GATEWAY               ││
 │  │                 │◄───── JSON ────────│          (FastAPI)                  ││
 │  │  - Thin Client  │                     │                                     ││
-│  │  - WorkOS Auth  │                     │  - Authentication (WorkOS JWT)      ││
+│  │  - WorkOS AuthKit│                     │  - Authentication (WorkOS AuthKit JWT)││
 │  │  - TanStack Qry │                     │  - Credit Management (Supabase)     ││
 │  │                 │──────► WSS ────────►│  - Cloud Tasks submission           ││
 │  └─────────────────┘                     │  - Routes to SDK Worker             ││
@@ -132,12 +134,20 @@ project-root/
 │
 ├── supabase/
 │   └── migrations/
-│       ├── 001_initial_schema.sql
-│       └── 002_audit_change_trigger.sql  # LISTEN/NOTIFY for real-time updates
+│       └── 001_initial_schema.sql        # Consolidated (001 + LISTEN/NOTIFY triggers)
 │
+├── .agents/                        # Supabase skills (loaded by Codebuff CLI)
+│   └── skills/
+│       ├── supabase/
+│       │   └── SKILL.md
+│       └── supabase-postgres-best-practices/
+│           └── SKILL.md
+├── .mcp.json                       # MCP server configuration (local tools)
+├── skills-lock.json                # Locked skill versions
 ├── frontend/
 │   ├── hooks/
 │   │   ├── use-queries.ts        # TanStack Query hooks
+│   │   ├── use-auth.ts           # AuthKit access token wrapper
 │   │   └── use-audit-stream.ts   # WebSocket real-time hook
 │   ├── lib/
 │   │   ├── api.ts                # Unified API client

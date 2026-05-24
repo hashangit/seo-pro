@@ -6,12 +6,26 @@ import {
   estimateAnalysis,
   runAudit,
   discoverSiteURLs,
+  analyzeTechnical,
+  analyzeContent,
+  analyzeSchema,
+  analyzeGeo,
+  analyzeSitemap,
+  analyzeHreflang,
+  analyzeImages,
+  analyzeVisual,
+  analyzePerformance,
+  analyzePage,
+  analyzePlan,
+  analyzeProgrammatic,
+  analyzeCompetitorPages,
   ANALYSIS_TYPES,
   ANALYSIS_TYPE_LABELS,
   CREDIT_PRICING,
   type AnalysisType,
   type URLDiscoveryResponse,
   type AnalysisEstimateResponse,
+  type AnalyzeResponse,
 } from "@/lib/api";
 import { useAuthUser } from "@/hooks/use-auth";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +81,21 @@ export function AnalysisSelector() {
   const [estimate, setEstimate] = useState<AnalysisEstimateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+
+  const INDIVIDUAL_ANALYSIS_FNS: Record<AnalysisType, (url: string, token?: string) => Promise<AnalyzeResponse>> = {
+    technical: analyzeTechnical,
+    content: analyzeContent,
+    schema: analyzeSchema,
+    geo: analyzeGeo,
+    sitemap: analyzeSitemap,
+    hreflang: analyzeHreflang,
+    images: analyzeImages,
+    visual: analyzeVisual,
+    performance: analyzePerformance,
+    plan: analyzePlan,
+    programmatic: analyzeProgrammatic,
+    "competitor-pages": analyzeCompetitorPages,
+  };
 
   // Site audit specific state
   const [discovering, setDiscovering] = useState(false);
@@ -182,7 +211,6 @@ export function AnalysisSelector() {
     try {
       const token = await getAccessToken();
       if (activeTab === "site_audit") {
-        // Site audit uses the quote flow
         if (!estimate.quote_id) {
           throw new Error("Quote ID is required for site audit");
         }
@@ -192,11 +220,33 @@ export function AnalysisSelector() {
           token
         );
         router.push(`/audit/${result.audit_id}`);
+      } else if (activeTab === "page_audit") {
+        const result = await analyzePage(url, token);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        if (!result.analysis_id) {
+          throw new Error("No analysis ID returned");
+        }
+        router.push(`/analysis/${result.analysis_id}`);
       } else {
-        // For individual and page audit, we'll run directly
-        // TODO: Implement analysis execution and tracking
-        // For now, redirect to a results page
-        router.push(`/analysis?mode=${activeTab}&url=${encodeURIComponent(url)}&types=${Array.from(selectedTypes).join(",")}`);
+        // Individual: run the first selected type and navigate to results
+        const types = Array.from(selectedTypes);
+        if (types.length === 0) {
+          throw new Error("No analysis type selected");
+        }
+        const analysisFn = INDIVIDUAL_ANALYSIS_FNS[types[0]];
+        if (!analysisFn) {
+          throw new Error(`Unknown analysis type: ${types[0]}`);
+        }
+        const result = await analysisFn(url, token);
+        if (result.error) {
+          throw new Error(result.error);
+        }
+        if (!result.analysis_id) {
+          throw new Error("No analysis ID returned");
+        }
+        router.push(`/analysis/${result.analysis_id}`);
       }
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Failed to start analysis");

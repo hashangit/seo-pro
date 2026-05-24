@@ -251,7 +251,7 @@ def create_analysis_response(result: dict, analysis_type: str) -> AnalyzeRespons
     """Create AnalyzeResponse from worker result."""
     if "category" in result:
         return AnalyzeResponse(**result)
-    return AnalyzeResponse(category=analysis_type, error=result.get("error"))
+    return AnalyzeResponse(category=analysis_type, analysis_id=result.get("analysis_id"), error=result.get("error"))
 
 
 @router.post("/analyze/technical", response_model=AnalyzeResponse)

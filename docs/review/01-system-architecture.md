@@ -1,5 +1,7 @@
 # 01 — System Architecture
 
+> **Current-state review, not target architecture:** This file documents the system as it exists today and as it evolved during the prior review. The analysis/audit flow is being redesigned. Use [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md) and [11-analysis-flow-current-and-target.md](./11-analysis-flow-current-and-target.md) as the source of truth for the intended quote/job/result architecture.
+
 ## High-Level Architecture
 
 SEO Pro uses a **microservices-inspired architecture** deployed on Google Cloud Platform with two primary user interfaces (SaaS web app and CLI skill).
@@ -66,7 +68,9 @@ SEO Pro uses a **microservices-inspired architecture** deployed on Google Cloud 
 | **Database** | PostgreSQL 17 | Supabase (managed) | 5432 | Managed |
 | **Task Queue** | Cloud Tasks | GCP | — | Managed |
 
-### Data Flow — Full Site Audit
+### Data Flow — Full Site Audit (Current Legacy Flow)
+
+This is the current site-audit flow. It is not the target architecture for all analysis modes. The intended direction is one durable quote/request lifecycle, one async paid-job lifecycle, and one `/analysis/{analysis_id}` result route for individual, page, and site analysis.
 
 ```
 1. User submits URL on Frontend
@@ -95,12 +99,13 @@ SEO Pro uses a **microservices-inspired architecture** deployed on Google Cloud 
    e. Results returned to worker
 
 6. Worker writes results to Supabase:
-   a. UPDATE audit_tasks SET status='completed', result_json=...
-   b. (Optional) POST /task-update to orchestrator
+   a. Current site-audit path updates audits when audit_id is present
+   b. audit_tasks is only updated when a task_id is provided
+   c. No orchestrator callback path remains
 
-7. Frontend polls:
-   GET /api/v1/audit/{id} every 2 seconds
-   → Shows progress and final results when status='completed'
+7. Frontend observes status:
+   GET /api/v1/audit/{id} and audit-centered WebSocket events are used for site audits
+   → Target state moves all paid jobs to /analysis/{analysis_id}
 ```
 
 ### Request Authentication Flow
@@ -156,4 +161,4 @@ Gateway:
 5. **SSRF protection**: Multi-layer validation before any outbound HTTP request
 6. **DEV_MODE flag**: Unlimited credits for development, blocked from production by config validator
 7. **Manual payment flow**: No IPG integration — users request credits, upload proof, admins approve
-8. **Real-time updates**: WebSocket + Postgres LISTEN/NOTIFY replaces polling — zero polling in the stack (2026-05-23)
+8. **Real-time updates**: WebSocket + Postgres LISTEN/NOTIFY exists for audit status. The analysis-flow tracker documents the remaining route/event-model gaps and the target analysis-centered realtime contract.

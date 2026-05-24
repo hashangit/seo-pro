@@ -39,6 +39,20 @@ This document captures observations, patterns, and potential gaps identified dur
 
 ## Architectural Observations
 
+### 0. Analysis Flow Fragmentation (High) — OPEN
+
+The SaaS analysis flow currently mixes two domain concepts: quote/request lifecycle and paid job/result lifecycle. Site audits have quote records (`pending_audits`) and async Cloud Task execution (`audits`), while individual analyses and page audits bypass durable quotes and run through synchronous worker proxy calls into `analyses`.
+
+This creates several product and engineering gaps:
+
+- Individual/page analysis cannot survive insufficient credits and later top-up.
+- Credit requests are not linked to the quote/request that caused the top-up need.
+- Site audits route through `/audit/{id}` while individual/page analyses route through `/analysis/{id}`.
+- Worker result persistence is split across `audits` and `analyses`.
+- Some frontend/API result contracts are inconsistent.
+
+**Target direction:** Separate quote/request records from paid analysis job/result records. All modes should follow quote -> accept -> credit gate -> async Cloud Task -> worker-isolated `analysis_id` -> `/analysis/{analysis_id}`. See [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md) and [11-analysis-flow-current-and-target.md](./11-analysis-flow-current-and-target.md).
+
 ### 1. Dual Orchestration Paths (Medium) — ✓ RESOLVED (2026-05-23)
 
 ~~The system has **two different audit orchestration paths**:~~
@@ -50,7 +64,7 @@ This document captures observations, patterns, and potential gaps identified dur
 
 ~~The orchestrator references `HTTP_WORKER_URL` and `BROWSER_WORKER_URL` which don't exist — there's only a unified SDK Worker. The API layer bypasses the orchestrator entirely. The orchestrator is bundled in the Gateway Docker image but doesn't appear to be actively used.~~
 
-**Resolution**: The legacy orchestrator (`orchestrator/scheduler.py`) has been completely removed along with `deploy/Dockerfile.orchestrator`, `HTTP_WORKER_URL`, and `BROWSER_WORKER_URL`. All orchestration flows solely through API Gateway → Cloud Tasks → SDK Worker. The Dockerfile.gateway no longer copies any orchestrator code.
+**Resolution**: The legacy orchestrator (`orchestrator/scheduler.py`) has been completely removed along with `deploy/Dockerfile.orchestrator`, `HTTP_WORKER_URL`, and `BROWSER_WORKER_URL`. Site-audit orchestration now flows through API Gateway → Cloud Tasks → SDK Worker; individual/page analysis still has a direct synchronous Gateway → SDK Worker path tracked under Finding #0. The Dockerfile.gateway no longer copies any orchestrator code.
 
 ### 2. In-Memory State in Orchestrator (Low) — ✓ RESOLVED (2026-05-23)
 
@@ -66,7 +80,7 @@ This document captures observations, patterns, and potential gaps identified dur
 
 ### 4. No WebSocket/SSE for Real-Time Updates (Low) — ✓ RESOLVED (2026-05-23)
 
-~~Frontend polls at 2-second intervals for audit status. For a platform with scale-to-zero workers, polling is pragmatic, but for large audits with many pages, this creates unnecessary load. WebSocket or Server-Sent Events could reduce this.~~
+~~The earlier audit status path used repeated HTTP status checks. For a platform with scale-to-zero workers, that was pragmatic, but for large audits with many pages it created unnecessary load. WebSocket or Server-Sent Events could reduce this.~~
 
 **Resolution**: WebSocket + Postgres LISTEN/NOTIFY replaces HTTP polling. Architecture:
 
@@ -78,7 +92,7 @@ Worker writes to Supabase
         → TanStack Query cache updated via setQueryData
 ```
 
-New files: `api/routes/ws.py`, `api/core/ws_auth.py`, `frontend/hooks/use-audit-stream.ts`, `supabase/migrations/002_audit_change_trigger.sql`. Zero polling anywhere in the stack. WorkOS remains the sole auth system (JWT passed as WebSocket query parameter).
+New files: `api/routes/ws.py`, `api/core/ws_auth.py`, `frontend/hooks/use-audit-stream.ts`; the LISTEN/NOTIFY trigger is consolidated into `supabase/migrations/001_initial_schema.sql`. This resolved the original audit polling gap, but the broader analysis-flow tracker still owns any remaining polling/fallback behavior and the move to analysis-centered realtime events. WorkOS remains the sole auth system (JWT passed as WebSocket query parameter).
 
 ### 5. No Global State Management in Frontend (Neutral) — ✓ RESOLVED (2026-05-23)
 
@@ -180,5 +194,6 @@ Overlap is limited to Docker image builds (ci.yml verifies the build, cloudbuild
 
 ### Open Items
 
+- **#0 Analysis Flow Fragmentation**: High-priority architecture cleanup. Use the dedicated analysis flow tracker before changing quote, audit, analysis, credit, worker, or result-route code.
 - **#6 Payment Gateway**: Manual payment flow (request → invoice → proof → admin approval) is functional but manual. IPG integration would automate this. Known and tracked gap.
 - **#9 Worker Test Suite**: The SDK worker has no dedicated tests. Gateway tests (`pytest api/`) exist. Worth adding worker integration tests as the system grows.

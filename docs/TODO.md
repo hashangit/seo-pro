@@ -1,5 +1,36 @@
 # TODO — SEO Pro
 
+## Analysis Flow Unification (Architecture Tracker)
+
+Source of truth: [Analysis Flow Architecture](./ANALYSIS_FLOW_ARCHITECTURE.md)
+
+- [x] **Document current analysis/audit state and target architecture** (Priority: High) — DONE (2026-05-24)
+  Captures current DB shape, runtime flows, bugs, gaps, intended quote/job model, and migration phases.
+
+- [ ] **Fix immediate analysis correctness bugs** (Priority: High)
+  Page audit must return `analysis_id`; analysis status/result field names must match frontend expectations;
+  individual multi-select must either run all selected analyses or estimate only the one that will run.
+
+- [ ] **Create generalized analysis quote model** (Priority: High)
+  Replace site-audit-only quote handling with an all-mode quote/request lifecycle that supports accepted,
+  awaiting-credit, converted, abandoned, expired, and reminder-eligible states.
+
+- [ ] **Link credit requests to analysis quotes** (Priority: High)
+  When a user lacks credits, keep the quote, create or link a top-up request, and re-check the quote after
+  credit approval so accepted work can continue automatically when balance is sufficient.
+
+- [ ] **Move individual and page audit execution to Cloud Tasks** (Priority: High)
+  All paid analysis modes should run asynchronously through the worker. The API gateway should not wait
+  for agent completion.
+
+- [ ] **Unify result persistence and routing** (Priority: High)
+  Paid jobs should persist in `analyses` and route to `/analysis/{analysis_id}` for individual, page audit,
+  and site audit modes. Legacy `/audit/{id}` should not remain as permanent architecture.
+
+- [ ] **Retain quotes for reminders and analytics** (Priority: Medium)
+  Stop treating expired quotes as data to delete by default. Preserve enough state for cart-drop reminders,
+  conversion tracking, and debugging.
+
 ## Deferred from February 2026 Research Report
 
 Items identified during the Feb 2026 SEO research audit that require additional implementation work.
@@ -34,7 +65,7 @@ Items identified during the Feb 2026 SEO research audit that require additional 
 
 - [x] **Real-time audit updates via WebSockets** (Priority: Low) — ~~DONE (2026-05-23)~~
   Replaced 2-second polling with WebSocket + Postgres LISTEN/NOTIFY.
-  See `api/routes/ws.py`, `frontend/hooks/use-audit-stream.ts`, `supabase/migrations/002_audit_change_trigger.sql`.
+  See `api/routes/ws.py`, `frontend/hooks/use-audit-stream.ts`, `supabase/migrations/001_initial_schema.sql` (LISTEN/NOTIFY trigger merged into initial migration).
 
 - [x] ~~**Research: In-memory orchestrator state persistence** (Priority: Low)~~ — NO LONGER RELEVANT
   Legacy orchestrator (`orchestrator/scheduler.py`) has been completely removed (2026-05-23).

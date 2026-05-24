@@ -63,3 +63,5 @@ screenshots/
 # Temporary analysis files
 *-AUDIT-REPORT.md
 *-ACTION-PLAN.md
+.dual-graph/
+.dual-graph-context/

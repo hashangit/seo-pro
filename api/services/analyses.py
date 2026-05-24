@@ -206,7 +206,7 @@ async def run_individual_analysis(url: str, analysis_type: str, user: dict) -> d
                     extra={"user_id": user["id"], "credits": credits_to_deduct, "error": str(refund_error)}
                 )
 
-            # Still return the error to the user
+            result["analysis_id"] = analysis_id
             return result
 
         # Update analysis record as completed
@@ -215,6 +215,7 @@ async def run_individual_analysis(url: str, analysis_type: str, user: dict) -> d
                 supabase, analysis_id, "completed", results=result
             )
 
+        result["analysis_id"] = analysis_id
         return result
 
     except Exception as e:

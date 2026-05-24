@@ -30,6 +30,7 @@ class AnalyzeResponse(BaseModel):
     """Response model for individual analysis endpoints."""
 
     category: str
+    analysis_id: str | None = None
     score: int | None = None
     issues: list = []
     warnings: list = []

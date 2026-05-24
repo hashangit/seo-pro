@@ -177,13 +177,92 @@ cp /path/to/seo-pro/agents/*.md ~/.claude/agents/
 
 ---
 
+## SaaS Platform Issues
+
+### Backend Fails to Start
+
+**Symptom:** Uvicorn exits with `ModuleNotFoundError` or connection refused
+
+**Solutions:**
+
+1. Activate the virtual environment:
+```bash
+source .venv/bin/activate
+```
+
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
+```
+
+3. Check `.env` has required variables (see `.env.example` for current schema)
+
+4. Check for port conflicts:
+```bash
+lsof -i :8080
+```
+
+---
+
+### Auth / JWKS Errors
+
+**Symptom:** `401 Unauthorized` or `Unable to find a valid signing key`
+
+**Solutions:**
+
+1. Verify `WORKOS_CLIENT_ID` is set correctly in `.env`
+2. The JWKS URL is now `https://api.workos.com/sso/jwks/{client_id}` (AuthKit-specific), not the old `/v1/jwks` path
+3. `WORKOS_AUDIENCE` is optional — leave blank unless you configured a custom audience claim in WorkOS
+4. `WORKOS_ISSUER` has been removed — AuthKit uses client-specific issuers
+5. If keys change, the backend automatically refreshes the JWKS cache on the next request
+
+---
+
+### WebSocket Connection Failures
+
+**Symptom:** Real-time audit status not updating, WebSocket errors in console
+
+**Solutions:**
+
+1. Check that `SUPABASE_DATABASE_URL` is set (direct Postgres connection for LISTEN/NOTIFY)
+2. Verify the database has the LISTEN/NOTIFY trigger installed (in `001_initial_schema.sql`)
+3. Check backend logs for `pg_pool_init_failed` — this is expected if no direct DB URL is configured (REST API still works)
+4. Verify the frontend WebSocket URL points to the correct backend address
+
+---
+
+### Frontend Build / Compile Errors
+
+**Symptom:** Next.js fails to compile or shows white screen
+
+**Solutions:**
+
+1. Install dependencies:
+```bash
+cd frontend && npm install
+```
+
+2. Clear Next.js cache:
+```bash
+rm -rf frontend/.next
+```
+
+3. Check Node.js version (20+ required):
+```bash
+node --version
+```
+
+4. Verify `.env` has `NEXT_PUBLIC_WORKOS_CLIENT_ID` and `NEXT_PUBLIC_WORKOS_REDIRECT_URI`
+
+---
+
 ## Getting Help
 
-1. **Check the docs:** Review [COMMANDS.md](COMMANDS.md) and [ARCHITECTURE.md](ARCHITECTURE.md)
+1. **Check the docs:** Review [COMMANDS.md](COMMANDS.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [LOCAL_DEVELOPMENT.md](LOCAL_DEVELOPMENT.md)
 
 2. **GitHub Issues:** Report bugs at the repository
 
-3. **Logs:** Check Claude Code's output for error details
+3. **Logs:** Check Claude Code's output for error details, or backend logs at `/tmp/backend.log` and frontend logs at `/tmp/frontend.log`
 
 ## Debug Mode
 
@@ -198,4 +277,10 @@ python3 ~/.claude/skills/seo/scripts/parse_html.py page.html --json
 
 # Test screenshot
 python3 ~/.claude/skills/seo/scripts/capture_screenshot.py https://example.com
+
+# Check backend logs
+cat /tmp/backend.log
+
+# Check frontend logs
+cat /tmp/frontend.log
 ```

@@ -4,6 +4,8 @@
 
 The frontend is a **Next.js 15** application using the **App Router** with **TypeScript**, **Tailwind CSS**, and **shadcn/ui** components. It's deployed on **Vercel** and communicates with the FastAPI gateway.
 
+> **Current-state review, not target architecture:** This file documents the frontend routes and components as they currently exist. The target product flow is one quote-first launcher and one `/analysis/{analysis_id}` result route for individual, page, and site analysis. See [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md).
+
 ### Key Files
 
 | File | Lines | Purpose |
@@ -32,9 +34,9 @@ The frontend is a **Next.js 15** application using the **App Router** with **Typ
 | `/auth/logout` | Client page | Yes | Logout confirmation |
 | `/dashboard` | Server page | Yes | Credit balance + recent audits (SSR) |
 | `/audits` | Server page | Yes | Paginated audit list (status filter) |
-| `/audit/[id]` | Client page | Yes | Audit results with WebSocket real-time updates |
+| `/audit/[id]` | Client page | Yes | Current legacy site-audit result route; target is `/analysis/[id]` |
 | `/analyses` | Client page | Yes | Analysis list with status badges |
-| `/analysis/[id]` | Client page | Yes | Analysis results with WebSocket real-time updates |
+| `/analysis/[id]` | Client page | Yes | Target unified result route; currently individual/page analysis only |
 | `/credits` | Server page | Yes | Purchase credits (manual payment flow) |
 | `/credits/history` | Client page | Yes | Transaction history |
 | `/credits/requests` | Client page | Yes | Credit request list + proof upload |
@@ -100,7 +102,7 @@ The most complex frontend component, handling all three analysis modes:
 2. URL checklist with select/deselect all
 3. Fallback to manual sitemap input
 4. `estimateAnalysis()` → shows credit cost
-5. `runAnalysis()` → redirects to `/analysis/[id]` or `/audit/[id]`
+5. `runAnalysis()` → currently redirects to `/analysis/[id]` or `/audit/[id]`; target state always redirects to `/analysis/[id]`
 
 ### State Management
 
@@ -110,7 +112,7 @@ State handled through:
 - **Auth state**: WorkOS `useAuth()` + `useAccessToken()` via `useAuthUser()` wrapper
 - **Optimistic updates**: `useMutation` with `onMutate` for instant feedback
 - **URL state**: `searchParams` for filters/pagination
-- **Real-time updates**: WebSocket via `use-audit-stream.ts` — receives push events from Postgres LISTEN/NOTIFY, updates query cache via `queryClient.setQueryData()`. Eliminates all polling.
+- **Real-time updates**: WebSocket via `use-audit-stream.ts` — receives push events from Postgres LISTEN/NOTIFY and updates query cache via `queryClient.setQueryData()`. The current implementation is audit-centered; the analysis-flow tracker defines the intended analysis-centered status stream and any remaining polling/fallback cleanup.
 
 ### Data Fetching Architecture
 

@@ -287,12 +287,20 @@ git clone https://github.com/hashangit/seo-pro.git
 cd seo-pro
 cp .env.example .env
 
+# Edit .env with your WorkOS AuthKit credentials
+# Note: WORKOS_AUDIENCE and WORKOS_ISSUER are no longer required —
+# AuthKit session tokens use the AuthKit-specific JWKS endpoint.
+# See .env.example for current variable names.
+
 # Start services
 docker-compose up -d
 ```
 
 ### Useful Commands
 ```bash
+# Activate virtual environment
+source .venv/bin/activate
+
 # Run tests
 pytest
 npm test --prefix frontend
@@ -308,8 +316,14 @@ npm run format --prefix frontend
 # Type check
 mypy api workers
 npm run type-check --prefix frontend
+
+# Run backend server
+uvicorn api.main:app --host 0.0.0.0 --port 8080 --reload
+
+# Run frontend server
+npm run dev --prefix frontend
 ```
 
 ---
 
-*Last updated: February 2026*
+*Last updated: May 2026*

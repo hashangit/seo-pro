@@ -4,6 +4,8 @@
 
 The database is **Supabase PostgreSQL 17**, used exclusively as a data store — **not** for authentication (that's WorkOS). The schema is defined in a single migration file: `supabase/migrations/001_initial_schema.sql`.
 
+> **Current-state review, not target schema:** This file describes the current database shape. `pending_audits`, `audits`, and `audit_tasks` are part of the current site-audit implementation and should be treated as migration context, not the final analysis-domain model. The intended schema direction is documented in [../ANALYSIS_FLOW_ARCHITECTURE.md](../ANALYSIS_FLOW_ARCHITECTURE.md).
+
 ## Schema: 7 Tables
 
 ### `organizations`
@@ -19,22 +21,35 @@ The database is **Supabase PostgreSQL 17**, used exclusively as a data store —
 - Columns: `id` (UUID PK), `user_id` (FK → users), `amount` (INT, negative=spend), `balance_after` (INT), `transaction_type` (purchase/spend/refund/bonus), `reference_id`, `reference_type` (audit/analysis/purchase/bonus/adjustment/refund), `description`, `created_at`
 
 ### `pending_audits`
-- Quote management with 30-minute expiry
+- Current site-audit-only quote management with 30-minute expiry
 - Columns: `id` (UUID PK), `user_id` (FK → users), `url`, `page_count`, `credits_required`, `status` (pending/processing/approved/expired/cancelled), `created_at`, `expires_at` (NOW + 30min), `metadata` (JSONB)
+- Target direction: replace or generalize into durable analysis quote/request records that support individual, page, and site analysis, top-up recovery, and abandoned-quote reminders.
 
 ### `audits`
-- Full site audit records
+- Current full-site audit job/result records
 - Columns: `id` (UUID PK), `user_id` (FK → users), `url`, `status` (queued/processing/completed/failed/cancelled), `page_count`, `credits_used`, `results_json` (JSONB), `error_message`, `created_at`, `completed_at`, `metadata` (JSONB)
 - Constraint: `status='failed'` requires non-null `error_message`
+- Target direction: migrate paid site-audit jobs/results into `analyses` so every result has one `/analysis/{analysis_id}` identity.
 
 ### `audit_tasks`
-- Subagent progress tracking for SDK worker
+- Current site-audit task/progress tracking for SDK worker
 - Columns: `id` (UUID PK), `audit_id` (FK → audits), `task_type` (technical/content/schema/sitemap/performance/visual), `worker_type` (http/playwright/sdk), `status` (queued/processing/completed/failed), `result_json` (JSONB), `error_message`, `created_at`, `updated_at`, `completed_at`
+- Target direction: if task-level progress remains useful, reattach it to generalized `analysis_jobs`/`analyses` rather than the legacy `audits` table.
 
 ### `analyses`
-- Individual analysis tracking with status
+- Current individual/page analysis tracking with status; target result table for all paid analysis modes
 - Columns: `id` (UUID PK), `user_id` (FK → users), `url`, `analysis_type` (12 types + page_audit + site_audit), `analysis_mode` (individual/page_audit/site_audit), `credits_used`, `status` (pending/processing/completed/failed/cancelled), `results_json` (JSONB), `error_message`, `created_at`, `updated_at`, `completed_at`, `metadata` (JSONB)
 - Constraint: `status='failed'` requires non-null `error_message`
+
+## Target-State Note
+
+The target analysis domain should separate:
+
+- Quote/request records: what the user asked for, estimated credits, expiry/reminder state, top-up recovery, and acceptance state.
+- Paid job/result records: what was actually charged and executed, with one `analysis_id` per paid job and one result URL.
+- Optional task/progress records: worker-visible steps tied to `analysis_id`, not to legacy site-only `audit_id`.
+
+Until that migration is implemented, read `pending_audits`, `audits`, and `audit_tasks` as current-state compatibility tables.
 
 ### `credit_requests`
 - Manual payment flow tracking

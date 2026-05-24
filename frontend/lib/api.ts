@@ -249,6 +249,7 @@ export interface AnalyzeRequest {
 
 export interface AnalyzeResponse {
   category: string;
+  analysis_id?: string;
   score?: number;
   issues: Array<{ check: string; status: string; value?: string }>;
   warnings: Array<{ check: string; status: string; value?: string }>;

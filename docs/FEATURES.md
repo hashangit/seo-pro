@@ -12,14 +12,14 @@ SEO Pro operates in two modes:
 - **WorkOS AuthKit Integration**: Enterprise-grade authentication
 - **Organization Support**: Multi-tenant with organization-level access
 - **JWT-Based Sessions**: Secure token-based authentication
-- **Lazy User Sync**: Automatic user creation on first login
+- **Lazy User Sync**: Automatic user creation on first login, with real profile data (email, name) synced from the identity provider via WorkOS API
 
 ### Credit System
 - **Credit-Based Pricing**: $1 = 8 credits
 - **Manual Payment Flow**: Request credits via Wise/Bank transfer with admin approval
 - **Invoice Generation**: Automatic invoice numbers for each credit request
 - **Payment Proof Upload**: Users upload payment confirmation for admin review
-- **Real-Time Balance Tracking**: Live credit balance updates
+- **Real-Time Balance Tracking**: Live credit balance updates via TanStack Query (client-side fetching with caching)
 - **Transaction History**: Complete audit trail of all credit activity
 - **Atomic Credit Operations**: Race-condition-safe credit deduction
 - **Never-Expiring Credits**: Purchase once, use anytime
@@ -37,8 +37,10 @@ SEO Pro operates in two modes:
 | Mode | Credits | Description |
 |------|---------|-------------|
 | Quick Analysis | 1 per report | Individual analysis types |
-| Full Page Audit | 8 per page | All 12 types on one page (33% discount) |
+| Full Page Audit | 8 per report | All 12 types on one page (33% discount) |
 | Full Site Audit | 7 per page | All 12 types across entire site |
+
+> **Implementation note:** These modes are being moved toward a unified quote -> credit gate -> async analysis job -> results flow. Current implementation details and gaps are tracked in [Analysis Flow Architecture](./ANALYSIS_FLOW_ARCHITECTURE.md).
 
 ### User Interface
 - **Modern Next.js Frontend**: TypeScript with Tailwind CSS
@@ -243,7 +245,7 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 - **Cloud Run Deployment**: Scale-to-zero (min_instances=0)
 - **Cloud Tasks**: Async job processing
 - **Supabase**: PostgreSQL database with RLS + LISTEN/NOTIFY for real-time push
-- **Postgres LISTEN/NOTIFY**: DB triggers push audit status changes via WebSockets (zero polling)
+- **Postgres LISTEN/NOTIFY**: DB triggers push audit status changes via WebSockets; the analysis-flow tracker owns the remaining move to analysis-centered realtime events.
 
 ### Worker
 - **Unified SDK Worker**: Claude Agent SDK-based analysis engine
@@ -261,13 +263,15 @@ Comprehensive parallel analysis across entire websites (up to 500 pages).
 - `audit_tasks` - Subagent progress tracking
 - `pending_audits` - Quote management with expiry
 
+Target-state analysis flow separates quote/request records from paid job/result records. See [Analysis Flow Architecture](./ANALYSIS_FLOW_ARCHITECTURE.md) before changing analysis, audit, credit, or quote tables.
+
 ---
 
 ## Security Features
 
 - **URL Validation**: SSRF prevention
 - **Row-Level Security**: Data isolation per user/org
-- **WorkOS JWT Authentication**: Enterprise-grade auth
+- **WorkOS AuthKit JWT Authentication**: Enterprise-grade auth via AuthKit JWKS endpoint
 - **Service Role Separation**: Privilege boundaries
 - **Input Sanitization**: Injection prevention
 - **CORS Configuration**: Origin whitelisting
